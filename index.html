@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HOLOAVI - Hologramy i awatary</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="icon" type="image/png" href="assets/favicon.svg">
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js"
+            }
+        }
+    </script>
+</head>
+
+<body>
+    <header class="sticky-nav">
+        <div class="container nav-container">
+            <div class="logo">
+                <a href="#" data-page="home.html"><img src="assets/logo.svg" alt="HOLOAVI Logo" /></a>
+            </div>
+            <nav>
+                <ul class="nav-links">
+                    <li><a href="#" data-page="home.html">Start</a></li>
+                    <li><a href="#" data-page="o-nas.html">O nas</a></li>
+                    <li><a href="#" data-page="uslugi.html">Usługi</a></li>
+                    <li><a href="#" data-page="kontakt.html">Kontakt</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main id="content"></main>
+
+    <footer class="footer">
+        <div class="container footer-container">
+            <div class="footer-segment">
+                <div class="logo">
+                    <img src="assets/logo.svg" alt="HOLOAVI Logo" />
+                </div>
+                <p>Ożywiamy prezentacje każdej firmy, budujemy zaangażowanie i emocje klientów.</p>
+            </div>
+            <div class="footer-segment">
+                <h3>Przydatne linki</h3>
+                <ul class="footer-links">
+                    <li><a href="#" data-page="home.html">Start</a></li>
+                    <li><a href="#" data-page="o-nas.html">O nas</a></li>
+                    <li><a href="#" data-page="uslugi.html">Usługi</a></li>
+                    <li><a href="#" data-page="cennik.html">Cennik</a></li>
+                    <li><a href="#" data-page="regulamin.html">Regulamin</a></li>
+                    <li><a href="#" data-page="polityka.html">Polityka Prywatności</a></li>
+                </ul>
+            </div>
+            <div class="footer-segment">
+                <h3>Kontakt</h3>
+                <p>✉️ kontakt@holoavi.pl</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 NAAPP New Advance Applications Paweł Nowaczek.</p>
+        </div>
+    </footer>
+
+    <script type="module" src="js/router.js?v=1"></script>
+</body>
+
+</html>

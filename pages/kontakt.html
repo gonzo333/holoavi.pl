@@ -1,0 +1,34 @@
+<section class="section">
+    <div class="container">
+
+        <h2 class="badge">> Formularz kontaktowy</h2>
+
+        <p style="margin-bottom: 20px;">Napisz do nas! Postaramy się odpowiedzieć najszybciej jak to tylko możliwe!</p>
+
+        <div class="form-wrapper">
+            <form id="contactForm" class="card">
+                <div class="form-group">
+                    <label for="imie">Imię:</label>
+                    <input type="text" id="imie" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Adres E-mail:</label>
+                    <input type="email" id="email" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="wiadomosc">Wiadomość:</label>
+                    <textarea id="wiadomosc" rows="5" required></textarea>
+                </div>
+
+                <button type="submit" id="submitBtn" class="hologram-btn btn-primary">
+                    Wyślij wiadomość
+                </button>
+            </form>
+        </div>
+
+        <div id="formResponse" class="badge" style="display: none; width: 100%; text-align: center; margin-top: 20px;">
+        </div>
+    </div>
+</section>

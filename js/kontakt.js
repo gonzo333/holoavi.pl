@@ -28,14 +28,15 @@ export function initContactForm() {
       });
 
       responseDiv.style.display = "block";
-      responseDiv.style.backgroundColor = "#2ecc71";
+      responseDiv.style.backgroundColor = "var(--accent-primary)";
       responseDiv.style.color = "white";
+      responseDiv.style.margin = "1rem auto";
       responseDiv.innerHTML = "Dziękujemy! Wiadomość została zapisana.";
       form.reset();
     } catch (err) {
       console.log(err);
       responseDiv.style.display = "block";
-      responseDiv.style.backgroundColor = "#e74c3c";
+      responseDiv.style.backgroundColor = "var(--error-primary)";
       responseDiv.style.color = "white";
       responseDiv.innerHTML = "Wystąpił błąd. Spróbuj ponownie.";
     } finally {

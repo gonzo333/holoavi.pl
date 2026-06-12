@@ -1,5 +1,6 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js";
 import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/DRACOLoader.js";
 import { gsap } from "https://cdn.jsdelivr.net/npm/gsap@3.12.2/index.js";
 
 export function initHologramAnimation() {
@@ -8,8 +9,8 @@ export function initHologramAnimation() {
 
   if (!container || !statusText) return;
 
-  const FOTO_URL = "assets/photo.png";
-  const MODEL_URL = "assets/sylwetka.glb";
+  const FOTO_URL = "assets/photo-opt.png";
+  const MODEL_URL = "assets/sylwetka-opt.glb";
 
   const scene = new THREE.Scene();
 
@@ -44,15 +45,23 @@ export function initHologramAnimation() {
   const holoNeonColors = new Float32Array(particleCount * 3);
   const holoRealColors = new Float32Array(particleCount * 3);
 
+  // NAPRAWIONE: Dodano domyślną wartość opacity (0.8) na start
   const animationState = {
     morph: 0,
     colorMode: 0,
     meshOpacity: 0,
+    opacity: 0.8,
   };
 
   const loadingManager = new THREE.LoadingManager();
   const textureLoader = new THREE.TextureLoader(loadingManager);
   const gltfLoader = new GLTFLoader(loadingManager);
+
+  const dracoLoader = new DRACOLoader();
+  dracoLoader.setDecoderPath(
+    "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/",
+  );
+  gltfLoader.setDRACOLoader(dracoLoader);
 
   let loadedTexture, loadedGeometry;
 
@@ -116,6 +125,10 @@ export function initHologramAnimation() {
     const modelVertices = loadedGeometry.attributes.position.array;
     const vertexCount = modelVertices.length / 3;
 
+    loadedGeometry.computeBoundingBox();
+    const boundingBox = loadedGeometry.boundingBox;
+    const absoluteBottom = boundingBox.min.y;
+
     const img = loadedTexture.image;
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
@@ -152,8 +165,8 @@ export function initHologramAnimation() {
       let yPos = modelVertices[randomVertexIdx + 1];
       let zPos = modelVertices[randomVertexIdx + 2];
 
-      if (yPos < -0.3) {
-        yPos = -0.3;
+      if (yPos <= absoluteBottom + 0.02) {
+        yPos = absoluteBottom;
       }
 
       hologramPositions[i * 3] = xPos;
@@ -184,10 +197,12 @@ export function initHologramAnimation() {
       size: 0.008,
       vertexColors: true,
       transparent: true,
-      opacity: 0.8,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
+
+    // Przypisujemy startowe opacity z obiektu stanu
+    material.opacity = animationState.opacity;
 
     hologramPoints = new THREE.Points(geometry, material);
     scene.add(hologramPoints);
@@ -204,48 +219,60 @@ export function initHologramAnimation() {
     tl.to(
       {},
       {
-        duration: 2,
+        duration: 4,
         onStart: () => {
-          statusText.innerText = "Transmisja 2D stabilna.";
+          statusText.innerText = "Przetwarzanie zdjęcia awatara";
         },
       },
     );
 
     tl.to(animationState, {
       morph: 1,
-      duration: 3,
+      duration: 5,
       ease: "power2.inOut",
       onStart: () => {
-        statusText.innerText = "Inicjalizacja skanowania 3D...";
+        statusText.innerText = "Budowanie sylwetki 3D awatara";
       },
     });
-    tl.to(animationState, { colorMode: 1, duration: 1.5, ease: "linear" }, "<");
+
+    tl.to(animationState, { colorMode: 1, duration: 3.5, ease: "linear" }, "<");
 
     tl.to(
       hologramPoints.rotation,
       {
         y: Math.PI * 2,
-        duration: 6,
+        duration: 8,
         ease: "power1.inOut",
         onStart: () => {
-          statusText.innerText = "Hologram zsynchronizowany.";
+          statusText.innerText = "Ładowanie wiedzy awatara";
         },
       },
-      "-=1",
+      "-=1.5",
+    );
+
+    tl.to(
+      animationState,
+      {
+        meshOpacity: 1,
+        duration: 5,
+        delay: 1,
+        ease: "power2.inOut",
+        onStart: () => {
+          statusText.innerText = "Zbudowano mówiącego awatara 3D";
+        },
+      },
+      "-=7.0",
     );
 
     tl.to(
       animationState,
       {
         colorMode: 2,
-        meshOpacity: 1,
-        duration: 2.0,
-        ease: "power2.out",
-        onStart: () => {
-          statusText.innerText = "Przywracanie struktury [SUKCES].";
-        },
+        opacity: 0,
+        duration: 7,
+        ease: "sine.inOut",
       },
-      "-=3.0",
+      "-=5.5",
     );
 
     tl.to({}, { duration: 2 });
@@ -254,15 +281,17 @@ export function initHologramAnimation() {
       morph: 0,
       colorMode: 0,
       meshOpacity: 0,
-      duration: 2,
+      opacity: 0.8,
+      duration: 3,
       ease: "power2.inOut",
       onStart: () => {
-        statusText.innerText = "Resetowanie matrycy...";
+        statusText.innerText = "Przywracanie ustawień początkowych...";
       },
     });
+
     tl.to(
       hologramPoints.rotation,
-      { y: 0, duration: 2, ease: "power2.inOut" },
+      { y: 0, duration: 3, ease: "power2.inOut" },
       "<",
     );
   }
@@ -273,6 +302,9 @@ export function initHologramAnimation() {
     animationFrameId = requestAnimationFrame(animate);
 
     if (hologramPoints) {
+      // NAPRAWIONE: Aktualizacja przezroczystości materiału cząsteczek w każdej klatce animacji
+      hologramPoints.material.opacity = animationState.opacity;
+
       const posAttr = hologramPoints.geometry.attributes.position;
       const colAttr = hologramPoints.geometry.attributes.color;
 
@@ -349,6 +381,7 @@ export function initHologramAnimation() {
     window.removeEventListener("resize", handleResize);
     cancelAnimationFrame(animationFrameId);
     if (tl) tl.kill();
+    dracoLoader.dispose();
     renderer.dispose();
   };
 }

@@ -1,26 +1,38 @@
 <section class="section">
-    <div class="container">
-        <h2 class="badge">> Przyciągnij uwagę tłumów</h2>
-        <h3>Tworzymy zaawansowane symulacje i wynajmujemy hologramy na wydarzenia premium.</h3>
+  <div class="container">
+    <h2 class="badge">> Przyciągnij uwagę tłumów</h2>
+    <h3>
+      Tworzymy zaawansowane symulacje i wynajmujemy hologramy na wydarzenia
+      premium.
+    </h3>
 
-        <div class="hologram-wrapper">
-            <div class="hologram-hud">
-                <h3>> Tworzenie interaktywnych agentów 3D</h3>
-                <p>Status: <span id="status-text">Pobieranie zasobów...</span></p>
-            </div>
-            <div id="hologram-container" class="hologram-canvas-container"></div>
+    <div class="hologram-wrapper">
+      <div
+        id="hologram-container"
+        style="position: relative; width: 100%; height: 100%"
+      >
+        <video
+          id="hologram-video"
+          loop
+          playsinline
+          style="width: 100%; height: 100%; object-fit: cover"
+        >
+          <source src="assets/hologram-animation.mp4" type="video/mp4" />
+        </video>
+        <div id="status-text">Ładowanie...</div>
+      </div>
 
-            <div class="hologram-cta-container">
-                <a href="#" class="hologram-btn btn-primary" data-page="uslugi.html">
-                    <span>Sprawdź ofertę</span>
-                </a>
-                <a href="#" class="hologram-btn btn-secondary" data-page="kontakt.html">
-                    <span>Kontakt i wycena</span>
-                </a>
-                <a href="#" class="hologram-btn btn-tertiary" data-page="onas.html">
-                    <span>O nas &rarr;</span>
-                </a>
-            </div>
-        </div>
+      <div class="hologram-cta-container">
+        <a href="#" class="hologram-btn btn-primary" data-page="uslugi.html">
+          <span>Sprawdź ofertę</span>
+        </a>
+        <a href="#" class="hologram-btn btn-secondary" data-page="kontakt.html">
+          <span>Kontakt i wycena</span>
+        </a>
+        <a href="#" class="hologram-btn btn-tertiary" data-page="onas.html">
+          <span>O nas &rarr;</span>
+        </a>
+      </div>
     </div>
+  </div>
 </section>

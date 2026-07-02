@@ -7,23 +7,42 @@
     </h3>
 
     <div class="hologram-wrapper">
-      <div
-        id="hologram-container"
-        style="position: relative; width: 100%; height: 100%"
-      >
+      <div id="hologram-container">
+        <div class="hologram-hud">
+          <h3>STATUS:</h3>
+          <p id="status-text">Inicjalizacja...</p>
+        </div>
+
+        <div id="laser-line" class="laser-line"></div>
+
+        <img
+          id="avatar-static-img"
+          src="assets/animation-photo.png"
+          class="avatar-element avatar-static active scanning"
+          alt="Tworzenie awatara"
+        />
+
         <video
-          id="hologram-video"
-          loop
-          autoplay
+          id="avatar-talking-video"
+          class="avatar-element avatar-video"
+          playsinline
+          controlsList="nodownload nofullscreen noremoteplayback"
+          disablePictureInPicture
+        >
+          <source id="talking-source" type="video/webm" />
+        </video>
+
+        <video
+          id="avatar-idle-video"
+          class="avatar-element avatar-video"
           muted
           playsinline
           controlsList="nodownload nofullscreen noremoteplayback"
           disablePictureInPicture
-          style="width: 100%; height: 100%; object-fit: cover"
         >
-          <source src="assets/hologram-animation.mp4" type="video/mp4" />
+          <source id="idle-source" type="video/webm" />
         </video>
-        <div id="status-text">Ładowanie...</div>
+
         <button
           id="muteToggle"
           class="mute-toggle-btn"

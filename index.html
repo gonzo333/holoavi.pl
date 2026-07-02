@@ -3,9 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HOLOAVI - Hologramy i awatary</title>
+    <title>HOLOAVI - Hologramy i awatary AI</title>
+    <meta
+      name="description"
+      content="HOLOAVI - wynajem hologramów na eventy, tworzenie interaktywnych awatarów AI dla firm. Obsługujemy targi, konferencje, showroomy i strony internetowe."
+    />
+    <meta name="theme-color" content="#811abe" />
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="HOLOAVI - Hologramy i awatary AI" />
+    <meta
+      property="og:description"
+      content="Wynajem hologramów na eventy i interaktywne awatary AI dla firm. Działające wdrożenia, nie demonstracje."
+    />
+    <meta property="og:image" content="assets/favicon.svg" />
+    <meta property="og:locale" content="pl_PL" />
     <link rel="stylesheet" href="css/style.css" />
-    <link rel="icon" type="image/png" href="assets/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/glightbox/dist/css/glightbox.min.css"
@@ -21,8 +35,18 @@
             ><img src="assets/logo.svg" alt="HOLOAVI Logo"
           /></a>
         </div>
-        <nav>
-          <ul class="nav-links">
+        <button
+          class="nav-hamburger"
+          id="navToggle"
+          aria-label="Otwórz menu"
+          aria-expanded="false"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <nav aria-label="Główna nawigacja">
+          <ul class="nav-links" id="navLinks">
             <li><a href="#" data-page="home.html">Start</a></li>
             <li><a href="#" data-page="uslugi.html">Usługi</a></li>
             <li><a href="#" data-page="cennik.html">Cennik</a></li>
@@ -72,6 +96,32 @@
       </div>
     </footer>
 
-    <script type="module" src="js/router.js?v=1"></script>
+    <div id="page-loader" class="page-loader" aria-hidden="true"></div>
+
+    <div
+      id="cookieBanner"
+      class="cookie-banner"
+      role="dialog"
+      aria-label="Informacja o plikach cookie"
+    >
+      <div class="cookie-banner-inner">
+        <p>
+          Ta strona ładuje zasoby zewnętrzne (CDN) oraz przetwarza dane
+          przesłane przez formularz kontaktowy. Dane te wykorzystujemy wyłącznie
+          w celu obsługi zapytań i zapobiegania spamowi. Więcej w
+          <a href="#" class="cookie-policy-link">Polityce Prywatności</a>.
+        </p>
+        <div class="cookie-banner-actions">
+          <button id="cookieDecline" class="hologram-btn btn-tertiary">
+            Odrzucam
+          </button>
+          <button id="cookieAccept" class="hologram-btn btn-primary">
+            Rozumiem
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="js/router.js?v=3"></script>
   </body>
 </html>

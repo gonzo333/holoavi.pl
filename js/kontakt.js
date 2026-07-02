@@ -1,4 +1,5 @@
-const GOOGLE_SCRIPT_URL = "FUTURE_LINK_TO_GOOGLE_SCRIPTS";
+const GOOGLE_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbwFNyZXpQEaqzWJtIEr5wjpwt1B_K4OhOny9xZU58ufVHtGv9l8aCkHh5MrIJ-RWNb0/exec";
 
 function sanitizeFormData(formElement) {
   const formData = new FormData(formElement);
@@ -67,8 +68,6 @@ function validateFormData(data) {
 async function sendToGoogleScripts(data) {
   return await fetch(GOOGLE_SCRIPT_URL, {
     method: "POST",
-    mode: "no-cors",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
 }

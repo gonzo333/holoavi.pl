@@ -1,6 +1,6 @@
 <section class="section">
   <div class="container">
-    <h2 class="badge">> Przyciągnij uwagę tłumów</h2>
+    <h1 class="badge">> Przyciągnij uwagę tłumów</h1>
     <h3>
       Tworzymy zaawansowane symulacje i wynajmujemy hologramy na wydarzenia
       premium.
@@ -14,12 +14,21 @@
         <video
           id="hologram-video"
           loop
+          autoplay
+          muted
           playsinline
+          controlsList="nodownload nofullscreen noremoteplayback"
+          disablePictureInPicture
           style="width: 100%; height: 100%; object-fit: cover"
         >
           <source src="assets/hologram-animation.mp4" type="video/mp4" />
         </video>
         <div id="status-text">Ładowanie...</div>
+        <button
+          id="muteToggle"
+          class="mute-toggle-btn"
+          aria-label="Włącz dźwięk"
+        ></button>
       </div>
 
       <div class="hologram-cta-container">
@@ -29,7 +38,7 @@
         <a href="#" class="hologram-btn btn-secondary" data-page="kontakt.html">
           <span>Kontakt i wycena</span>
         </a>
-        <a href="#" class="hologram-btn btn-tertiary" data-page="onas.html">
+        <a href="#" class="hologram-btn btn-tertiary" data-page="o-nas.html">
           <span>O nas &rarr;</span>
         </a>
       </div>

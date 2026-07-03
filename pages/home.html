@@ -1,10 +1,7 @@
 <section class="section">
   <div class="container">
-    <h1 class="badge">> Przyciągnij uwagę tłumów</h1>
-    <h3>
-      Tworzymy zaawansowane symulacje i wynajmujemy hologramy na wydarzenia
-      premium.
-    </h3>
+    <h1 class="badge">> Awatary i hologramy przyszłości</h1>
+    <h3>Nowoczesne rozwiązania eventowe wsparte AI.</h3>
 
     <div class="hologram-wrapper">
       <div id="hologram-container">
@@ -43,23 +40,39 @@
           <source id="idle-source" type="video/webm" />
         </video>
 
+        <video
+          id="avatar-question-video"
+          class="avatar-element avatar-video"
+          muted
+          playsinline
+          controlsList="nodownload nofullscreen noremoteplayback"
+          disablePictureInPicture
+        >
+          <source id="question-source" type="video/mp4" />
+        </video>
+
+        <div id="questionTrigger" class="avatar-question-trigger">
+          <div class="avatar-question-bubble">
+            Czy mogę otrzymać umowę elektronicznie?
+          </div>
+          <button
+            id="questionArrowBtn"
+            class="question-arrow-btn"
+            aria-label="Zadaj pytanie: Czy mogę otrzymać umowę elektronicznie?"
+          ></button>
+        </div>
+
+        <button
+          id="refreshBtn"
+          class="refresh-btn"
+          aria-label="Odtwórz animację od nowa"
+        ></button>
+
         <button
           id="muteToggle"
           class="mute-toggle-btn"
           aria-label="Włącz dźwięk"
         ></button>
-      </div>
-
-      <div class="hologram-cta-container">
-        <a href="#" class="hologram-btn btn-primary" data-page="uslugi.html">
-          <span>Sprawdź ofertę</span>
-        </a>
-        <a href="#" class="hologram-btn btn-secondary" data-page="kontakt.html">
-          <span>Kontakt i wycena</span>
-        </a>
-        <a href="#" class="hologram-btn btn-tertiary" data-page="o-nas.html">
-          <span>O nas &rarr;</span>
-        </a>
       </div>
     </div>
   </div>

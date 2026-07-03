@@ -1,11 +1,10 @@
 import { initContactForm } from "./kontakt.js";
-import { initHologramAnimation } from "./animacja.js?v=1";
+import { initHologramAnimation } from "./animacja.js?v=2";
 import { initPricingPage } from "./pricing.js";
 import { initCookieConsent } from "./cookie-consent.js";
 
 const PAGE_TITLES = {
-  "home.html": "HOLOAVI – Hologramy i awatary AI",
-  "uslugi.html": "Usługi | HOLOAVI",
+  "home.html": "HOLOAVI - Hologramy i awatary AI",
   "cennik.html": "Cennik | HOLOAVI",
   "o-nas.html": "O nas | HOLOAVI",
   "kontakt.html": "Kontakt | HOLOAVI",
@@ -17,7 +16,6 @@ const PAGE_TITLES = {
 
 const HASH_TO_PAGE = {
   home: "home.html",
-  uslugi: "uslugi.html",
   cennik: "cennik.html",
   "o-nas": "o-nas.html",
   kontakt: "kontakt.html",

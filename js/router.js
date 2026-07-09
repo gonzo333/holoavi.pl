@@ -150,6 +150,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         initSubpageScripts(pageUrl);
+        initScrollReveal();
 
         contentDiv.classList.remove("page-fade");
         hideLoader();
@@ -262,6 +263,32 @@ document.addEventListener("DOMContentLoaded", () => {
     const pageUrl = HASH_TO_PAGE[hash] || "home.html";
     loadPage(pageUrl, "none");
   });
+
+  // --- Scroll reveal ---
+  function initScrollReveal() {
+    const targets = document.querySelectorAll(
+      ".card, .tech-style, .section-footer-cta, .media-card"
+    );
+    if (!targets.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("revealed");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    targets.forEach((el, i) => {
+      el.classList.add("reveal");
+      el.style.transitionDelay = `${Math.min(i * 0.06, 0.4)}s`;
+      observer.observe(el);
+    });
+  }
 
   // --- Initial load ---
   const initialHash = location.hash.slice(1);

@@ -35,6 +35,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const loader = document.getElementById("page-loader");
   const navToggle = document.getElementById("navToggle");
   const navLinks = document.getElementById("navLinks");
+  const themeToggle = document.getElementById("themeToggle");
+
+  const savedTheme = localStorage.getItem("theme");
+  const systemPrefersLight = window.matchMedia(
+    "(prefers-color-scheme: light)",
+  ).matches;
+  const initialTheme = savedTheme || (systemPrefersLight ? "light" : "dark");
 
   let currentCleanup = null;
 
@@ -84,6 +91,41 @@ document.addEventListener("DOMContentLoaded", () => {
         "active",
         link.getAttribute("data-page") === pageUrl,
       );
+    });
+  }
+
+  function applyTheme(theme) {
+    if (theme === "light") {
+      document.documentElement.setAttribute("data-theme", "light");
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+    localStorage.setItem("theme", theme);
+  }
+
+  if (themeToggle) {
+    themeToggle.addEventListener("click", (e) => {
+      const currentTheme =
+        document.documentElement.getAttribute("data-theme") === "light"
+          ? "light"
+          : "dark";
+      const newTheme = currentTheme === "light" ? "dark" : "light";
+
+      const rect = themeToggle.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+
+      document.documentElement.style.setProperty("--clip-x", `${x}px`);
+      document.documentElement.style.setProperty("--clip-y", `${y}px`);
+
+      if (!document.startViewTransition) {
+        applyTheme(newTheme);
+        return;
+      }
+
+      document.startViewTransition(() => {
+        applyTheme(newTheme);
+      });
     });
   }
 
@@ -267,7 +309,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- Scroll reveal ---
   function initScrollReveal() {
     const targets = document.querySelectorAll(
-      ".card, .tech-style, .section-footer-cta, .media-card"
+      ".card, .tech-style, .section-footer-cta, .media-card",
     );
     if (!targets.length) return;
 
@@ -280,7 +322,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         });
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
 
     targets.forEach((el, i) => {
@@ -294,6 +336,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const initialHash = location.hash.slice(1);
   const initialPage = HASH_TO_PAGE[initialHash] || "home.html";
   loadPage(initialPage, "replace");
+
+  applyTheme(initialTheme);
 
   initCookieConsent(loadPage);
 });

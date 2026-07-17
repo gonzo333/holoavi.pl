@@ -34,8 +34,9 @@ const MODES = {
   },
   hologram: {
     isThreeJS: true, // Traditional video or three.js setup (only hologram is supported atm)
-    modelPath: assetsHologramPath + "/hologram-avatar.glb",
-    staticImg: assetsHologramPath + "/animation-photo.png",
+    modelPath: assetsHologramPath + "/alex-avatar.glb",
+    greetingAudio: assetsHologramPath + "/alex-greeting.mp3",
+    staticImg: assetsHologramPath + "/alex-photo.png",
     statusReady: "Hologram 3D aktywny",
     statusIdle: "Zadaj pytanie modelowi 3D.",
     statusAnalyzing: "Inicjalizacja silnika holograficznego...",
@@ -43,17 +44,23 @@ const MODES = {
       "Uruchamianie silnika renderowania...",
       "Inicjalizacja kamery i światła...",
       "Wczytywanie trójwymiarowej geometrii...",
-      "Dostrajanie kości i animacji...",
+      "Weryfikacja danych...",
     ],
     questions: [
       {
-        text: "Jakie urządzenia holograficzne oferujecie?",
-        audio: assetsHologramPath + "/questions/hologram-devices.mp3",
+        text: "Z jakim wyprzedzeniem muszę rezerwować termin?",
+        audio: assetsHologramPath + "/questions/alex-book-in-advance.mp3",
         animation: "present",
       },
       {
         text: "Czy hologram działa w jasnym pomieszczeniu?",
-        audio: assetsHologramPath + "/questions/hologram-light.mp3",
+        audio: assetsHologramPath + "/questions/alex-brightness.mp3",
+        animation: "explain",
+      },
+      {
+        text: "Czy dowozicie i montujecie sprzęt na miejscu?",
+        audio:
+          assetsHologramPath + "/questions/alex-transport-and-logistics.mp3",
         animation: "explain",
       },
     ],
@@ -73,7 +80,6 @@ export function initHologramAnimation() {
 
     if (wrapper) {
       wrapper.classList.add("hologram-transition-active");
-
       if (mode === "avatar") {
         wrapper.classList.add("theme-avatar");
         wrapper.classList.remove("theme-hologram");
@@ -81,7 +87,6 @@ export function initHologramAnimation() {
         wrapper.classList.add("theme-hologram");
         wrapper.classList.remove("theme-avatar");
       }
-
       setTimeout(() => {
         wrapper.classList.remove("hologram-transition-active");
       }, 500);
@@ -148,7 +153,9 @@ export function initHologramAnimation() {
     )
       return () => {};
 
-    // Reset sidebar question tile
+    let audioObject = null;
+    let replayThreeAnimation = null;
+
     if (questionsGroup) {
       questionsGroup.classList.add("is-locked");
     }
@@ -157,7 +164,17 @@ export function initHologramAnimation() {
     }
     setControlsReady(false);
 
-    staticImg.src = config.staticImg;
+    if (config.staticImg) {
+      staticImg.src = config.staticImg;
+      if (config.isThreeJS) {
+        staticImg.style.display = "none";
+      } else {
+        staticImg.style.display = "block";
+      }
+    } else {
+      staticImg.style.display = "none";
+    }
+
     if (questionsSelector) {
       questionsSelector.innerHTML = config.questions
         .map(
@@ -191,6 +208,37 @@ export function initHologramAnimation() {
       return config.stages[index];
     }
 
+    const handleMuteClick = () => {
+      isMuted = !isMuted;
+      if (muteBtn) {
+        muteBtn.innerHTML = isMuted ? ICON_MUTED : ICON_UNMUTED;
+      }
+      [talkingVideo, idleVideo, idleVideoB, questionVideo].forEach((v) => {
+        if (v) v.muted = isMuted;
+      });
+      if (audioObject) {
+        audioObject.muted = isMuted;
+      }
+    };
+
+    const handleRefreshClick = () => {
+      if (config.isThreeJS && typeof replayThreeAnimation === "function") {
+        replayThreeAnimation();
+      } else if (!config.isThreeJS) {
+        replayAnimation();
+      }
+    };
+
+    if (muteBtn) {
+      muteBtn.innerHTML = isMuted ? ICON_MUTED : ICON_UNMUTED;
+      muteBtn.addEventListener("click", handleMuteClick);
+    }
+    if (refreshBtn) {
+      refreshBtn.innerHTML = ICON_REFRESH;
+      refreshBtn.addEventListener("click", handleRefreshClick);
+    }
+
+    // Three.js enabled
     if (config.isThreeJS) {
       [talkingVideo, idleVideo, idleVideoB, questionVideo].forEach((v) => {
         if (v) {
@@ -202,13 +250,28 @@ export function initHologramAnimation() {
 
       let scene, camera, renderer, animationFrameId;
       let clock, mixer, activeAction, currentModel;
-      let audioObject = null;
+      let isDestroyed = false;
       let audioCtx = null,
         analyser = null,
         sourceNode = null,
         dataArray = null;
 
       let fallbackMesh;
+      let purpleLight, orangeLight, rimLight;
+      let holoDust;
+      let hologramNodes = [];
+
+      const colDarkIdle = new THREE.Color(0x00ffff);
+      const colDarkTalk = new THREE.Color(0xff00ff);
+      const colLightIdle = new THREE.Color(0x0284c7);
+      const colLightTalk = new THREE.Color(0xb91c1c);
+
+      let customUniforms = {
+        uTime: { value: 0 },
+        uVolume: { value: 0 },
+        uIsLightMode: { value: 0 },
+        uModelY: { value: -2.2 },
+      };
 
       function initThreeScene() {
         clock = new THREE.Clock();
@@ -220,7 +283,7 @@ export function initHologramAnimation() {
           0.1,
           100,
         );
-        camera.position.set(0, 0, 8);
+        camera.position.set(0, 0, 7);
 
         renderer = new THREE.WebGLRenderer({
           canvas: canvas3d,
@@ -230,28 +293,212 @@ export function initHologramAnimation() {
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.setSize(container.clientWidth, container.clientHeight);
 
-        const ambientLight = new THREE.AmbientLight(0x0f0b26, 1.5);
+        const ambientLight = new THREE.AmbientLight(0x0a0518, 0.4);
         scene.add(ambientLight);
 
-        const purpleLight = new THREE.DirectionalLight(0x811abe, 3);
-        purpleLight.position.set(-5, 3, 5);
+        purpleLight = new THREE.PointLight(0x811abe, 2.5, 20);
+        purpleLight.position.set(-5, 4, 2);
         scene.add(purpleLight);
 
-        const orangeLight = new THREE.DirectionalLight(0xfa9721, 3);
-        orangeLight.position.set(5, -3, 5);
+        orangeLight = new THREE.PointLight(0xfa9721, 2.5, 20);
+        orangeLight.position.set(5, -4, 2);
         scene.add(orangeLight);
+
+        rimLight = new THREE.PointLight(0x00ffff, 2, 10);
+        rimLight.position.set(0, 4, -3);
+        scene.add(rimLight);
+
+        const particleGeo = new THREE.BufferGeometry();
+        const particleCount = 130;
+        const posArray = new Float32Array(particleCount * 3);
+        const velArray = new Float32Array(particleCount * 3);
+
+        for (let i = 0; i < particleCount * 3; i += 3) {
+          posArray[i] = (Math.random() - 0.5) * 5.5;
+          posArray[i + 1] = (Math.random() - 0.5) * 3.0;
+          posArray[i + 2] = (Math.random() - 0.5) * 5.5;
+
+          velArray[i] = (Math.random() - 0.5) * 0.015;
+          velArray[i + 1] = (Math.random() - 0.5) * 0.01;
+          velArray[i + 2] = (Math.random() - 0.5) * 0.015;
+        }
+
+        particleGeo.setAttribute(
+          "position",
+          new THREE.BufferAttribute(posArray, 3),
+        );
+        particleGeo.userData = { velocities: velArray };
+
+        const particleMat = new THREE.ShaderMaterial({
+          uniforms: customUniforms,
+          vertexShader: `
+            uniform float uVolume;
+            varying float vVolume;
+            varying vec3 vModelPos;
+            void main() {
+              vVolume = uVolume;
+              vModelPos = position;
+              vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+              gl_Position = projectionMatrix * mvPosition;
+              
+              gl_PointSize = (1.6 + (uVolume * 0.04)) * (26.0 / -mvPosition.z);
+            }
+          `,
+          fragmentShader: `
+            uniform float uIsLightMode;
+            uniform float uTime;
+            uniform float uModelY;
+            varying float vVolume;
+            varying vec3 vModelPos;
+            
+            vec3 hsl2rgb(vec3 c) {
+              vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0, 0.0, 1.0);
+              return c.z + c.y * (rgb - 0.5) * (1.0 - abs(2.0 * c.z - 1.0));
+            }
+            
+            void main() {
+              vec2 coord = gl_PointCoord - vec2(0.5);
+              float dist = length(coord);
+              if(dist > 0.5) discard;
+              
+              float alphaFactor = smoothstep(0.5, 0.1, dist);
+              vec3 color;
+              
+              if (uIsLightMode > 0.5) {
+                if (vVolume < 1.8) {
+                  color = hsl2rgb(vec3(0.58, 0.85, 0.35));
+                } else {
+                  float hue = 0.94 + sin(uTime * 5.0) * 0.03 + (vModelPos.y * 0.02);
+                  color = hsl2rgb(vec3(mod(hue, 1.0), 0.95, 0.36));
+                }
+              } else {
+                if (vVolume < 1.8) {
+                  color = hsl2rgb(vec3(0.52, 1.0, 0.45));
+                } else {
+                  float hue = 0.82 + (vVolume * 0.005) + (vModelPos.y * 0.04);
+                  color = hsl2rgb(vec3(mod(hue, 1.0), 1.0, 0.55));
+                }
+              }
+              
+              float targetAlpha = 0.70;
+              
+              if (vModelPos.z > 0.0) {
+                float centerY = uModelY + 2.2; 
+                
+                float maskX = vModelPos.x * 0.75; 
+                float maskY = vModelPos.y - centerY;
+                float distToFace = length(vec2(maskX, maskY));
+                
+                float faceMask = smoothstep(0.6, 1.6, distToFace);
+                
+                targetAlpha = mix(0.02, 0.70, faceMask);
+              }
+              
+              float glow = 1.0 + (vVolume * 0.09);
+              gl_FragColor = vec4(color * glow * alphaFactor, targetAlpha * alphaFactor);
+            }
+          `,
+          transparent: true,
+          depthWrite: false,
+        });
+
+        holoDust = new THREE.Points(particleGeo, particleMat);
+        holoDust.renderOrder = 1;
+        scene.add(holoDust);
+
+        hologramNodes = [];
+        for (let i = 0; i < 3; i++) {
+          const pLight = new THREE.PointLight(0xffffff, 0, 3.0);
+          scene.add(pLight);
+          hologramNodes.push(pLight);
+        }
       }
 
-      // Fallback chain core setup
       function setupFallbackGeometry() {
-        const geometry = new THREE.TorusKnotGeometry(1.2, 0.4, 120, 16);
-        const material = new THREE.MeshBasicMaterial({
-          color: 0x811abe,
-          wireframe: true,
+        const geometry = new THREE.TorusKnotGeometry(1.0, 0.22, 120, 16);
+
+        const positions = geometry.attributes.position;
+        const originals = new Float32Array(positions.array);
+        geometry.userData = { originals: originals };
+
+        const material = new THREE.ShaderMaterial({
+          uniforms: customUniforms,
+          vertexShader: `
+            uniform float uTime;
+            uniform float uVolume;
+            varying float vVolume;
+            varying vec3 vPos;
+            void main() {
+              vVolume = uVolume;
+              vec3 pos = position;
+              vPos = position;
+              
+              float waveIntensity = uVolume / 140.0;
+              float frequency = 2.5;
+              
+              float offsetX = (sin(uTime * 4.5 + pos.y * frequency + pos.z) * 0.6 + cos(uTime * 2.3 - pos.x * 1.9) * 0.4) * waveIntensity * 0.26;
+              float offsetY = (cos(uTime * 3.8 + pos.x * frequency + pos.y) * 0.6 + sin(uTime * 1.8 - pos.z * 2.5) * 0.4) * waveIntensity * 0.26;
+              float offsetZ = (sin(uTime * 4.8 + pos.z * frequency + pos.x) * 0.6 + cos(uTime * 2.6 - pos.y * 2.9) * 0.4) * waveIntensity * 0.26;
+              
+              pos.x += offsetX;
+              pos.y += offsetY;
+              pos.z += offsetZ;
+              
+              vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+              gl_Position = projectionMatrix * mvPosition;
+              
+              gl_PointSize = 1.6 * (45.0 / -mvPosition.z);
+            }
+          `,
+          fragmentShader: `
+            uniform float uIsLightMode;
+            uniform float uTime;
+            varying float vVolume;
+            varying vec3 vPos;
+            
+            vec3 hsl2rgb(vec3 c) {
+              vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0, 0.0, 1.0);
+              return c.z + c.y * (rgb - 0.5) * (1.0 - abs(2.0 * c.z - 1.0));
+            }
+            
+            void main() {
+              vec2 coord = gl_PointCoord - vec2(0.5);
+              float dist = length(coord);
+              if(dist > 0.5) discard;
+              
+              float intensity = smoothstep(0.5, 0.2, dist);
+              float targetAlpha = 0.35 / (1.0 + vVolume * 0.07);
+              if (uIsLightMode > 0.5) targetAlpha = 0.85;
+              
+              vec3 color;
+              
+              float spatialPulse = sin(uTime * 6.5 + vPos.y * 7.0) * cos(uTime * 4.5 + vPos.x * 5.0) * (0.08 + vVolume * 0.008);
+              
+              if (uIsLightMode > 0.5) {
+                if (vVolume < 2.0) {
+                  color = hsl2rgb(vec3(0.58, 0.95, 0.32));
+                } else {
+                  float hueShift = 0.84 + spatialPulse;
+                  color = hsl2rgb(vec3(mod(hueShift, 1.0), 0.95, 0.38));
+                }
+              } else {
+                if (vVolume < 2.0) {
+                  color = hsl2rgb(vec3(0.50, 1.0, 0.50));
+                } else {
+                  float hueShift = 0.80 + spatialPulse;
+                  color = hsl2rgb(vec3(mod(hueShift, 1.0), 1.0, 0.52));
+                }
+              }
+              
+              gl_FragColor = vec4(color * intensity, targetAlpha * intensity);
+            }
+          `,
           transparent: true,
-          opacity: 0.65,
+          depthWrite: false,
         });
-        fallbackMesh = new THREE.Mesh(geometry, material);
+
+        fallbackMesh = new THREE.Points(geometry, material);
+        fallbackMesh.scale.setScalar(1.5);
         scene.add(fallbackMesh);
       }
 
@@ -260,11 +507,81 @@ export function initHologramAnimation() {
         loader.load(
           config.modelPath,
           (gltf) => {
+            if (isDestroyed) return;
             currentModel = gltf.scene;
-
-            currentModel.position.set(0, -1.8, 0);
-            currentModel.scale.setScalar(1.5);
+            currentModel.position.set(0, 0, 0);
+            currentModel.scale.setScalar(4.5);
             scene.add(currentModel);
+            currentModel.renderOrder = 0;
+
+            const hologramShaderMaterial = new THREE.ShaderMaterial({
+              uniforms: customUniforms,
+              vertexShader: `
+                varying vec3 vNormal;
+                varying vec3 vViewPosition;
+                varying vec3 vModelPos;
+                void main() {
+                  vNormal = normalize(normalMatrix * normal);
+                  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                  vViewPosition = -mvPosition.xyz;
+                  vModelPos = position;
+                  gl_Position = projectionMatrix * mvPosition;
+                }
+              `,
+              fragmentShader: `
+                uniform float uIsLightMode;
+                uniform float uTime;
+                uniform float uVolume;
+                varying vec3 vNormal;
+                varying vec3 vViewPosition;
+                varying vec3 vModelPos;
+
+                vec3 hsl2rgb(vec3 c) {
+                  vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0, 0.0, 1.0);
+                  return c.z + c.y * (rgb - 0.5) * (1.0 - abs(2.0 * c.z - 1.0));
+                }
+
+                void main() {
+                  vec3 normal = normalize(vNormal);
+                  vec3 viewDir = normalize(vViewPosition);
+                  
+                  float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 2.5);
+                  
+                  float scanline = sin(vModelPos.y * 70.0 - uTime * 5.0) * 0.18 + 0.82;
+                  
+                  vec3 color;
+                  float baseAlpha = (uIsLightMode > 0.5) ? 0.35 : 0.15;
+                  
+                  if (uIsLightMode > 0.5) {
+                    if (uVolume < 2.0) {
+                      color = hsl2rgb(vec3(0.58, 0.95, 0.32));
+                    } else {
+                      float hueShift = 0.84 + sin(uTime * 6.0) * 0.03;
+                      color = hsl2rgb(vec3(mod(hueShift, 1.0), 0.95, 0.38));
+                    }
+                  } else {
+                    if (uVolume < 2.0) {
+                      color = hsl2rgb(vec3(0.50, 1.0, 0.50));
+                    } else {
+                      float hueShift = 0.80 + sin(uTime * 5.0) * 0.06;
+                      color = hsl2rgb(vec3(mod(hueShift, 1.0), 1.0, 0.52));
+                    }
+                  }
+                  
+                  float glow = fresnel * 1.8 + 0.15 + (uVolume / 90.0);
+                  
+                  gl_FragColor = vec4(color * glow * scanline, (baseAlpha + fresnel * 0.5) * scanline);
+                }
+              `,
+              transparent: true,
+              depthWrite: true,
+            });
+
+            currentModel.traverse((child) => {
+              if (child.isMesh) {
+                child.material = hologramShaderMaterial;
+              }
+            });
 
             mixer = new THREE.AnimationMixer(currentModel);
             if (gltf.animations.length > 0) {
@@ -274,8 +591,9 @@ export function initHologramAnimation() {
           },
           undefined,
           (err) => {
+            if (isDestroyed) return;
             console.warn(
-              "Brak pliku modelu 3D na serwerze. Uruchamiam efekt awaryjny (Holographic Core Fallback).",
+              "No 3D model available... starting fallback chain.",
               err,
             );
             setupFallbackGeometry();
@@ -283,7 +601,6 @@ export function initHologramAnimation() {
         );
       }
 
-      // Maps the audio frequency to animate the core chain
       function setupAudioAnalyser(audioElement) {
         try {
           audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -317,55 +634,213 @@ export function initHologramAnimation() {
       function animate() {
         animationFrameId = requestAnimationFrame(animate);
 
-        const delta = clock ? clock.getDelta() : 0.016;
-        if (mixer) mixer.update(delta);
-
-        // Track audio volume for effects
+        const time = clock ? clock.getElapsedTime() : 0;
         const volume = getAverageVolume();
 
-        // Fallback chain core
-        if (fallbackMesh) {
-          fallbackMesh.rotation.x += 0.005;
-          fallbackMesh.rotation.y += 0.01;
+        const isLightMode =
+          document.documentElement.getAttribute("data-theme") === "light";
 
-          fallbackMesh.position.y =
-            Math.sin(clock.getElapsedTime() * 1.5) * 0.15;
+        customUniforms.uTime.value = time;
+        customUniforms.uVolume.value = volume;
+        customUniforms.uIsLightMode.value = isLightMode ? 1.0 : 0.0;
 
-          const scale = 1 + volume / 120;
-          fallbackMesh.scale.set(scale, scale, scale);
-
-          fallbackMesh.material.color.setHex(volume > 30 ? 0xfa9721 : 0x811abe);
+        const lightPulse = volume / 12;
+        if (isLightMode) {
+          if (purpleLight) {
+            purpleLight.color.setHex(0x6b21a8);
+            purpleLight.intensity = 2.0 + lightPulse;
+          }
+          if (orangeLight) {
+            orangeLight.color.setHex(0xea580c);
+            orangeLight.intensity = 2.0 + volume / 20;
+          }
+          if (rimLight) {
+            rimLight.color.setHex(0x0284c7);
+            rimLight.intensity = 1.0 + volume / 15;
+          }
+        } else {
+          if (purpleLight) {
+            purpleLight.color.setHex(0x811abe);
+            purpleLight.intensity = 4.0 + lightPulse * 4.0;
+          }
+          if (orangeLight) {
+            orangeLight.color.setHex(0xfa9721);
+            orangeLight.intensity = 4.0 + volume / 15;
+          }
+          if (rimLight) {
+            rimLight.color.setHex(0x00ffff);
+            rimLight.intensity = 2.0 + volume / 8;
+          }
         }
 
-        // Simplified lip sync
-        if (currentModel && volume > 10) {
+        if (hologramNodes && hologramNodes.length === 3) {
+          const isLight = isLightMode;
+          const powerFactor =
+            (35.0 + Math.sin(time * 5.0) * 10.0) * (1.0 + volume / 3.5);
+
+          hologramNodes[0].position.set(
+            Math.sin(time * 3.5) * 0.4,
+            1.3,
+            Math.cos(time * 3.5) * 0.4,
+          );
+          hologramNodes[0].intensity = powerFactor * 0.8;
+          hologramNodes[0].distance = 1.8;
+          hologramNodes[0].color.setHex(isLight ? 0x0284c7 : 0x00ffff);
+
+          hologramNodes[1].position.set(
+            Math.cos(time * 2.5) * 0.45,
+            0.2,
+            Math.sin(time * 2.5) * 0.45,
+          );
+          hologramNodes[1].intensity = powerFactor * 1.2;
+          hologramNodes[1].distance = 1.8;
+          hologramNodes[1].color.setHex(isLight ? 0xb91c1c : 0xff00ff);
+
+          hologramNodes[2].position.set(
+            Math.sin(time * 1.8) * 0.5,
+            -0.7,
+            Math.cos(time * 1.8) * 0.5,
+          );
+          hologramNodes[2].intensity = powerFactor * 0.9;
+          hologramNodes[2].distance = 1.8;
+          hologramNodes[2].color.setHex(isLight ? 0x4f46e5 : 0x00ffaa);
+        }
+
+        if (currentModel) {
+          currentModel.position.y = -2.2 + Math.sin(time * 1.8) * 0.05;
+          currentModel.rotation.z =
+            Math.sin(time * 8.0) * 0.015 * (volume / 90.0);
+          currentModel.rotation.y = time * 0.12;
+
+          customUniforms.uModelY.value = currentModel.position.y;
+
           currentModel.traverse((child) => {
-            if (child.isMesh && child.morphTargetInfluences) {
-              const mouthOpenIdx = child.morphTargetDictionary
-                ? child.morphTargetDictionary["mouthOpen"]
-                : 0;
-              if (mouthOpenIdx !== undefined) {
-                child.morphTargetInfluences[mouthOpenIdx] = Math.min(
-                  volume / 80,
-                  1.0,
-                );
-              }
+            if (child.isMesh && child.material) {
+              child.material.blending = isLightMode
+                ? THREE.NormalBlending
+                : THREE.AdditiveBlending;
             }
           });
+        }
+
+        if (holoDust) {
+          const geo = holoDust.geometry;
+          const positions = geo.attributes.position.array;
+          const vels = geo.userData.velocities;
+
+          const avatarWidth = 1.15;
+
+          const boundX = 2.8,
+            boundY = 1.5,
+            boundZ = 2.8;
+
+          for (let i = 0; i < positions.length; i += 3) {
+            let px = positions[i];
+            let py = positions[i + 1];
+            let pz = positions[i + 2];
+
+            const swirlStrength = 0.0003 + volume * 0.00002;
+            vels[i] += -pz * swirlStrength;
+            vels[i + 2] += px * swirlStrength;
+
+            positions[i] += vels[i];
+            positions[i + 1] += vels[i + 1];
+            positions[i + 2] += vels[i + 2];
+
+            vels[i] += (Math.random() - 0.5) * 0.0005;
+            vels[i + 1] += (Math.random() - 0.5) * 0.0004;
+            vels[i + 2] += (Math.random() - 0.5) * 0.0005;
+
+            let speed = Math.sqrt(
+              vels[i] * vels[i] +
+                vels[i + 1] * vels[i + 1] +
+                vels[i + 2] * vels[i + 2],
+            );
+            const maxSpeed = 0.01 + volume * 0.0003;
+            if (speed > maxSpeed) {
+              vels[i] = (vels[i] / speed) * maxSpeed;
+              vels[i + 1] = (vels[i + 1] / speed) * maxSpeed;
+              vels[i + 2] = (vels[i + 2] / speed) * maxSpeed;
+            }
+
+            if (Math.abs(positions[i]) > boundX) {
+              vels[i] *= -1;
+              positions[i] = Math.sign(positions[i]) * boundX;
+            }
+            if (Math.abs(positions[i + 1]) > boundY) {
+              vels[i + 1] *= -1;
+              positions[i + 1] = Math.sign(positions[i + 1]) * boundY;
+            }
+            if (Math.abs(positions[i + 2]) > boundZ) {
+              vels[i + 2] *= -1;
+              positions[i + 2] = Math.sign(positions[i + 2]) * boundZ;
+            }
+
+            let distToAvatar = Math.sqrt(
+              positions[i] * positions[i] + positions[i + 2] * positions[i + 2],
+            );
+
+            if (
+              distToAvatar < avatarWidth &&
+              positions[i + 1] > -1.5 &&
+              positions[i + 1] < 1.4
+            ) {
+              let nx = positions[i] / distToAvatar;
+              let nz = positions[i + 2] / distToAvatar;
+              let dotProduct = vels[i] * nx + vels[i + 2] * nz;
+
+              if (dotProduct < 0.0) {
+                vels[i] = vels[i] - 2.0 * dotProduct * nx;
+                vels[i + 2] = vels[i + 2] - 2.0 * dotProduct * nz;
+
+                vels[i] += (Math.random() - 0.5) * 0.006;
+                vels[i + 1] += (Math.random() - 0.5) * 0.004;
+                vels[i + 2] += (Math.random() - 0.5) * 0.006;
+              }
+
+              positions[i] = nx * (avatarWidth + 0.02);
+              positions[i + 2] = nz * (avatarWidth + 0.02);
+            }
+          }
+
+          geo.attributes.position.needsUpdate = true;
+
+          if (holoDust.material) {
+            holoDust.material.blending = isLightMode
+              ? THREE.NormalBlending
+              : THREE.AdditiveBlending;
+          }
+        }
+
+        if (fallbackMesh) {
+          fallbackMesh.rotation.y = time * 0.12;
+          fallbackMesh.rotation.x = time * 0.05;
+          if (fallbackMesh.material) {
+            if (isLightMode) {
+              fallbackMesh.material.blending = THREE.NormalBlending;
+              fallbackMesh.material.opacity = 0.9;
+            } else {
+              fallbackMesh.material.blending = THREE.AdditiveBlending;
+              fallbackMesh.material.opacity = 0.95;
+            }
+          }
         }
 
         renderer.render(scene, camera);
       }
 
-      function playAudioAnswer(qConfig) {
+      function playAudioAnswer(qConfig, isGreeting = false) {
         if (audioObject) {
           audioObject.pause();
         }
 
         setControlsReady(false);
-        statusText.innerText = "Hologram odpowiada...";
+        statusText.innerText = isGreeting
+          ? "Hologram Alexa gotowy..."
+          : "Odpowiadam na pytanie...";
 
-        audioObject = new Audio(qConfig.audio);
+        const audioUrl = typeof qConfig === "string" ? qConfig : qConfig.audio;
+        audioObject = new Audio(audioUrl);
         audioObject.muted = isMuted;
 
         audioObject.addEventListener("canplaythrough", () => {
@@ -381,7 +856,6 @@ export function initHologramAnimation() {
           statusText.innerText = config.statusIdle;
           setControlsReady(true);
 
-          // Clear all other question buttons
           if (questionsSelector) {
             questionsSelector
               .querySelectorAll(".hologram-btn")
@@ -390,7 +864,34 @@ export function initHologramAnimation() {
         };
       }
 
-      // Three.js animation start sequence
+      replayThreeAnimation = () => {
+        if (audioObject) {
+          audioObject.pause();
+          audioObject = null;
+        }
+        if (questionsSelector) {
+          questionsSelector
+            .querySelectorAll(".hologram-btn")
+            .forEach((b) => b.classList.remove("is-active"));
+        }
+        setControlsReady(false);
+
+        if (laserLine) {
+          laserLine.style.display = "block";
+          laserLine.style.animation = "laserScanAnimation 1.5s ease-in-out";
+          setTimeout(() => {
+            if (laserLine) laserLine.style.display = "none";
+          }, 1500);
+        }
+
+        if (config.greetingAudio) {
+          playAudioAnswer(config.greetingAudio, true);
+        } else {
+          statusText.innerText = config.statusReady;
+          setControlsReady(true);
+        }
+      };
+
       async function startThreeSequence() {
         statusText.innerText = config.statusAnalyzing;
         if (laserLine) {
@@ -414,6 +915,12 @@ export function initHologramAnimation() {
         statusText.innerText = config.statusReady;
         setControlsReady(true);
         if (questionsGroup) questionsGroup.classList.remove("is-locked");
+
+        if (config.greetingAudio) {
+          setTimeout(() => {
+            if (!isDestroyed) playAudioAnswer(config.greetingAudio, true);
+          }, 400);
+        }
       }
 
       const handleThreeQuestionsClick = (e) => {
@@ -428,7 +935,7 @@ export function initHologramAnimation() {
         const qIdx = parseInt(btn.getAttribute("data-index"), 10);
         const qConfig = config.questions[qIdx];
         if (qConfig && qConfig.audio) {
-          playAudioAnswer(qConfig);
+          playAudioAnswer(qConfig, false);
         }
       };
 
@@ -444,11 +951,8 @@ export function initHologramAnimation() {
       };
       window.addEventListener("resize", handleResize);
 
-      // Start three.js module
-      let isDestroyed = false;
       startThreeSequence();
 
-      // Clear Three.js module to avoid RAM leaks and audio doubling
       return function cleanupThree() {
         isDestroyed = true;
         window.removeEventListener("resize", handleResize);
@@ -458,6 +962,10 @@ export function initHologramAnimation() {
             handleThreeQuestionsClick,
           );
         }
+        if (muteBtn) muteBtn.removeEventListener("click", handleMuteClick);
+        if (refreshBtn)
+          refreshBtn.removeEventListener("click", handleRefreshClick);
+
         cancelAnimationFrame(animationFrameId);
 
         if (audioObject) {
@@ -468,13 +976,10 @@ export function initHologramAnimation() {
           audioCtx.close();
         }
 
-        // Drop GPU renderer task
-        if (renderer) {
-          renderer.dispose();
-        }
+        if (renderer) renderer.dispose();
         if (scene) {
           scene.traverse((object) => {
-            if (!object.isMesh) return;
+            if (!object.isMesh && !object.isPoints) return;
             object.geometry.dispose();
             if (Array.isArray(object.material)) {
               object.material.forEach((material) => material.dispose());
@@ -487,6 +992,7 @@ export function initHologramAnimation() {
       };
     }
 
+    // Video handler
     if (canvas3d) canvas3d.style.display = "none";
     [talkingVideo, idleVideo, idleVideoB, questionVideo].forEach((v) => {
       if (v) v.style.display = "block";
@@ -502,34 +1008,9 @@ export function initHologramAnimation() {
       video.addEventListener("contextmenu", preventContext),
     );
 
-    // Sync mute status
     [talkingVideo, idleVideo, idleVideoB, questionVideo].forEach(
       (v) => (v.muted = isMuted),
     );
-
-    const handleMuteClick = () => {
-      isMuted = !isMuted;
-      [talkingVideo, idleVideo, idleVideoB, questionVideo].forEach(
-        (v) => (v.muted = isMuted),
-      );
-      if (muteBtn) {
-        muteBtn.innerHTML = isMuted ? ICON_MUTED : ICON_UNMUTED;
-      }
-    };
-
-    if (muteBtn) {
-      muteBtn.innerHTML = isMuted ? ICON_MUTED : ICON_UNMUTED;
-      muteBtn.addEventListener("click", handleMuteClick);
-    }
-
-    const handleRefreshClick = () => {
-      replayAnimation();
-    };
-
-    if (refreshBtn) {
-      refreshBtn.innerHTML = ICON_REFRESH;
-      refreshBtn.addEventListener("click", handleRefreshClick);
-    }
 
     const handleVideoQuestionsClick = (e) => {
       const btn = e.target.closest("button");
@@ -652,11 +1133,7 @@ export function initHologramAnimation() {
       revealVideo(idleVideo, [talkingVideo, questionVideo, idleVideoB]).then(
         () => {
           statusText.innerText = config.statusIdle;
-
-          if (questionsGroup) {
-            questionsGroup.classList.remove("is-locked");
-          }
-
+          if (questionsGroup) questionsGroup.classList.remove("is-locked");
           setControlsReady(true);
 
           if (pendingQuestionPath) {
@@ -676,7 +1153,6 @@ export function initHologramAnimation() {
       if (questionTrigger) questionTrigger.classList.remove("is-open");
 
       statusText.innerText = "Odpowiadam na pytanie...";
-
       questionVideo.onended = () => {
         playIdleLoop();
       };
@@ -733,7 +1209,6 @@ export function initHologramAnimation() {
 
         if (timeLeft > 0 && timeLeft < 0.3) {
           talkingVideo.ontimeupdate = null;
-
           if (pendingQuestionPath) {
             const pathToPlay = pendingQuestionPath;
             pendingQuestionPath = null;
@@ -761,7 +1236,6 @@ export function initHologramAnimation() {
 
     async function startSequence() {
       statusText.innerText = config.statusAnalyzing;
-
       if (laserLine) {
         laserLine.style.display = "block";
         laserLine.style.animation =
@@ -783,15 +1257,13 @@ export function initHologramAnimation() {
         ]);
       } catch (err) {
         console.log("Error while loading resources, run fallback:", err);
-
         talkingSource.src = PATH_TALKING_VIDEO;
         idleSource.src = PATH_IDLE_VIDEO;
         idleSourceB.src = PATH_IDLE_VIDEO;
         questionSource.src = PATH_DEFAULT_QUESTION_VIDEO;
-        talkingVideo.load();
-        idleVideo.load();
-        idleVideoB.load();
-        questionVideo.load();
+        [talkingVideo, idleVideo, idleVideoB, questionVideo].forEach((v) =>
+          v.load(),
+        );
 
         await new Promise((resolve) => {
           talkingVideo.oncanplaythrough = () => {
@@ -802,9 +1274,7 @@ export function initHologramAnimation() {
       }
 
       if (isDestroyed) return;
-
       statusText.innerText = "Inicjalizacja strumienia...";
-
       const t2 = setTimeout(activateAvatar, 600);
       pendingTimeouts.push(t2);
     }
@@ -815,10 +1285,7 @@ export function initHologramAnimation() {
           .querySelectorAll(".hologram-btn")
           .forEach((b) => b.classList.remove("is-active"));
       }
-
-      if (questionsGroup) {
-        questionsGroup.classList.add("is-locked");
-      }
+      if (questionsGroup) questionsGroup.classList.add("is-locked");
 
       clearPendingTimeouts();
       pendingQuestionPath = null;
@@ -835,18 +1302,11 @@ export function initHologramAnimation() {
       questionVideo.onended = null;
       questionVideo.oncanplay = null;
 
-      talkingVideo.pause();
-      idleVideo.pause();
-      idleVideoB.pause();
-      questionVideo.pause();
-      talkingVideo.currentTime = 0;
-      idleVideo.currentTime = 0;
-      idleVideoB.currentTime = 0;
-      questionVideo.currentTime = 0;
-
-      [talkingVideo, idleVideo, idleVideoB, questionVideo].forEach((video) => {
-        video.classList.remove("active");
-        video.style.zIndex = "";
+      [talkingVideo, idleVideo, idleVideoB, questionVideo].forEach((v) => {
+        v.pause();
+        v.currentTime = 0;
+        v.classList.remove("active");
+        v.style.zIndex = "";
       });
       staticImg.style.zIndex = "";
       staticImg.classList.add("active", "scanning");
@@ -860,7 +1320,6 @@ export function initHologramAnimation() {
       }
 
       statusText.innerText = config.statusAnalyzing;
-
       const t = setTimeout(activateAvatar, ANALYSIS_DURATION_MS);
       pendingTimeouts.push(t);
     }
@@ -917,6 +1376,7 @@ export function initHologramAnimation() {
       idleVideo.pause();
       idleVideoB.pause();
       questionVideo.pause();
+
       videoBlobCache.forEach((url) => {
         if (url) URL.revokeObjectURL(url);
       });
@@ -924,7 +1384,6 @@ export function initHologramAnimation() {
     };
   }
 
-  // Mode buttons handlera
   if (avatarBtn) {
     avatarBtn.addEventListener("click", (e) => {
       e.preventDefault();
@@ -939,13 +1398,10 @@ export function initHologramAnimation() {
     });
   }
 
-  // Default run avatar mode
   switchMode("avatar");
 
   return function cleanupAll() {
-    if (currentCleanup) {
-      currentCleanup();
-    }
+    if (currentCleanup) currentCleanup();
   };
 }
 
@@ -983,17 +1439,14 @@ function revealVideo(video, hideElements) {
   return new Promise((resolve) => {
     video.onplaying = () => {
       video.onplaying = null;
-
       hideElements.forEach((el) => {
         el.classList.remove("active", "scanning");
         if (typeof el.pause === "function") el.pause();
       });
-
       resolve();
     };
 
     video.classList.add("active");
-
     video.play().catch((err) => {
       console.log("Error while playing:", err);
       hideElements.forEach((el) => {

@@ -2299,10 +2299,24 @@ html::view-transition {
         box-shadow: var(--shadow-sm);
         flex-wrap: nowrap;
         justify-content: flex-start;
+
+        opacity: 0;
+        transform: translateY(-15px);
+
+        transition: display 0.3s cubic-bezier(0.4, 0, 0.2, 1) allow-discrete,
+            opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .nav-links.nav-open {
         display: flex;
+        opacity: 1;
+        transform: translateY(0);
+
+        @starting-style {
+            opacity: 0;
+            transform: translateY(-15px);
+        }
     }
 
     .nav-links li {

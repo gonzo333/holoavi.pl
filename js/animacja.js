@@ -1,5 +1,8 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { createLogger } from "./logger.js";
+
+const logger = createLogger("hologram");
 
 const ICON_MUTED = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>`;
 const ICON_UNMUTED = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`;
@@ -11,7 +14,8 @@ const assetsHologramPath = "/assets/holograms";
 // Mode configuration
 const MODES = {
   avatar: {
-    isThreeJS: false, // Traditional video or three.js setup (only hologram is supported atm)
+    isThreeJSLegacy: false, // Full GLB model + audio Q&A (legacy hologram experience)
+    idleUsesThreeJS: false, // Video mode only: render the three.js wireframe loop instead of an idle video
     talking: assetsAvatarPath + "/magda-start.webm",
     idle: assetsAvatarPath + "/magda-loop.webm",
     question: assetsAvatarPath + "/magda-question.mp4",
@@ -28,17 +32,31 @@ const MODES = {
     questions: [
       {
         text: "Czy mogę otrzymać umowę elektronicznie?",
-        video: assetsAvatarPath + "/questions/magda-electronic-document.mp4",
+        video: assetsAvatarPath + "/questions/magda-electronic-document.webm",
+      },
+      {
+        text: "Jak długo trwa wdrożenie awatara?",
+        video: assetsAvatarPath + "/questions/magda-time-required.webm",
+      },
+      {
+        text: "A skąd awatar wie, jak odpowiadać klientom?",
+        video: assetsAvatarPath + "/questions/magda-avatar-knowledge.webm",
       },
     ],
   },
   hologram: {
-    isThreeJS: true, // Traditional video or three.js setup (only hologram is supported atm)
+    // Off by default: flip to true (and idleUsesThreeJS to false) to restore
+    // the full GLB model + audio Q&A experience below (uses `questions`).
+    isThreeJSLegacy: false,
+    // On by default: idle state renders the three.js wireframe loop, and
+    // `presentations` videos are played on demand like `questions` used to be.
+    idleUsesThreeJS: true,
     modelPath: assetsHologramPath + "/alex-avatar.glb",
     greetingAudio: assetsHologramPath + "/alex-greeting.mp3",
     staticImg: assetsHologramPath + "/alex-photo.png",
     statusReady: "Hologram 3D aktywny",
-    statusIdle: "Zadaj pytanie modelowi 3D.",
+    statusIdle: "Zadaj pytanie modelowi 3D.", // isThreeJSLegacy: true
+    statusIdlePresentation: "Gotowy do prezentacji.", // idleUsesThreeJS: true
     statusAnalyzing: "Inicjalizacja silnika holograficznego...",
     stages: [
       "Uruchamianie silnika renderowania...",
@@ -46,6 +64,7 @@ const MODES = {
       "Wczytywanie trójwymiarowej geometrii...",
       "Weryfikacja danych...",
     ],
+    // Used when isThreeJSLegacy: true (full GLB model + audio branch).
     questions: [
       {
         text: "Z jakim wyprzedzeniem muszę rezerwować termin?",
@@ -64,8 +83,209 @@ const MODES = {
         animation: "explain",
       },
     ],
+    // Used when idleUsesThreeJS: true (video + wireframe-idle branch).
+    presentations: [
+      {
+        text: "Prezentacja procesu produkcyjnego",
+        video: assetsHologramPath + "/presentations/production-processing.mp4",
+      },
+      {
+        text: "Dynamiczna prezentacja firmy",
+        video:
+          assetsHologramPath +
+          "/presentations/dynamic-company-presentation.mp4",
+      },
+      {
+        text: "Wirtualny pracownik",
+        video: assetsHologramPath + "/presentations/virtual-employee.mp4",
+      },
+    ],
   },
 };
+
+// Shared hologram "wireframe" mesh (points-based torus knot) reused both by
+// the full three.js hologram scene and by the standalone idle-loop renderer
+// used when a video-based mode opts into a three.js idle loop.
+function createHologramFallbackMesh(customUniforms) {
+  const geometry = new THREE.TorusKnotGeometry(1.0, 0.22, 120, 16);
+
+  const positions = geometry.attributes.position;
+  const originals = new Float32Array(positions.array);
+  geometry.userData = { originals: originals };
+
+  const material = new THREE.ShaderMaterial({
+    uniforms: customUniforms,
+    vertexShader: `
+      uniform float uTime;
+      uniform float uVolume;
+      varying float vVolume;
+      varying vec3 vPos;
+      void main() {
+        vVolume = uVolume;
+        vec3 pos = position;
+        vPos = position;
+
+        float waveIntensity = uVolume / 140.0;
+        float frequency = 2.5;
+
+        float offsetX = (sin(uTime * 4.5 + pos.y * frequency + pos.z) * 0.6 + cos(uTime * 2.3 - pos.x * 1.9) * 0.4) * waveIntensity * 0.26;
+        float offsetY = (cos(uTime * 3.8 + pos.x * frequency + pos.y) * 0.6 + sin(uTime * 1.8 - pos.z * 2.5) * 0.4) * waveIntensity * 0.26;
+        float offsetZ = (sin(uTime * 4.8 + pos.z * frequency + pos.x) * 0.6 + cos(uTime * 2.6 - pos.y * 2.9) * 0.4) * waveIntensity * 0.26;
+
+        pos.x += offsetX;
+        pos.y += offsetY;
+        pos.z += offsetZ;
+
+        vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+        gl_Position = projectionMatrix * mvPosition;
+
+        gl_PointSize = 1.6 * (45.0 / -mvPosition.z);
+      }
+    `,
+    fragmentShader: `
+      uniform float uIsLightMode;
+      uniform float uTime;
+      varying float vVolume;
+      varying vec3 vPos;
+
+      vec3 hsl2rgb(vec3 c) {
+        vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0, 0.0, 1.0);
+        return c.z + c.y * (rgb - 0.5) * (1.0 - abs(2.0 * c.z - 1.0));
+      }
+
+      void main() {
+        vec2 coord = gl_PointCoord - vec2(0.5);
+        float dist = length(coord);
+        if(dist > 0.5) discard;
+
+        float intensity = smoothstep(0.5, 0.2, dist);
+        float targetAlpha = 0.35 / (1.0 + vVolume * 0.07);
+        if (uIsLightMode > 0.5) targetAlpha = 0.85;
+
+        vec3 color;
+
+        float spatialPulse = sin(uTime * 6.5 + vPos.y * 7.0) * cos(uTime * 4.5 + vPos.x * 5.0) * (0.08 + vVolume * 0.008);
+
+        if (uIsLightMode > 0.5) {
+          if (vVolume < 2.0) {
+            color = hsl2rgb(vec3(0.58, 0.95, 0.32));
+          } else {
+            float hueShift = 0.84 + spatialPulse;
+            color = hsl2rgb(vec3(mod(hueShift, 1.0), 0.95, 0.38));
+          }
+        } else {
+          if (vVolume < 2.0) {
+            color = hsl2rgb(vec3(0.50, 1.0, 0.50));
+          } else {
+            float hueShift = 0.80 + spatialPulse;
+            color = hsl2rgb(vec3(mod(hueShift, 1.0), 1.0, 0.52));
+          }
+        }
+
+        gl_FragColor = vec4(color * intensity, targetAlpha * intensity);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+  });
+
+  const mesh = new THREE.Points(geometry, material);
+  mesh.scale.setScalar(1.5);
+  return mesh;
+}
+
+// Standalone three.js idle-loop renderer for video-based modes that set
+// `idleUsesThreeJS: true` — lets a mode play talking/question videos while
+// showing the hologram wireframe instead of an idle video loop.
+function createHologramWireframeLoop(canvas, container) {
+  const uniforms = {
+    uTime: { value: 0 },
+    uVolume: { value: 0 },
+    uIsLightMode: { value: 0 },
+  };
+
+  let scene, camera, renderer, mesh, clock, animationFrameId;
+  let running = false;
+
+  function ensureScene() {
+    if (renderer) return;
+    clock = new THREE.Clock();
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(
+      45,
+      container.clientWidth / container.clientHeight,
+      0.1,
+      100,
+    );
+    camera.position.set(0, 0, 6);
+
+    renderer = new THREE.WebGLRenderer({
+      canvas,
+      alpha: true,
+      antialias: true,
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(container.clientWidth, container.clientHeight);
+
+    mesh = createHologramFallbackMesh(uniforms);
+    scene.add(mesh);
+  }
+
+  function handleResize() {
+    if (!renderer || !camera) return;
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
+  }
+
+  function animate() {
+    animationFrameId = requestAnimationFrame(animate);
+
+    const isLightMode =
+      document.documentElement.getAttribute("data-theme") === "light";
+    const time = clock.getElapsedTime();
+
+    uniforms.uTime.value = time;
+    uniforms.uIsLightMode.value = isLightMode ? 1.0 : 0.0;
+
+    mesh.rotation.y = time * 0.12;
+    mesh.rotation.x = time * 0.05;
+    mesh.material.blending = isLightMode
+      ? THREE.NormalBlending
+      : THREE.AdditiveBlending;
+
+    renderer.render(scene, camera);
+  }
+
+  return {
+    start() {
+      if (running) return;
+      ensureScene();
+      running = true;
+      window.addEventListener("resize", handleResize);
+      handleResize();
+      animate();
+    },
+    stop() {
+      if (!running) return;
+      running = false;
+      window.removeEventListener("resize", handleResize);
+      cancelAnimationFrame(animationFrameId);
+    },
+    isActive() {
+      return running;
+    },
+    dispose() {
+      this.stop();
+      if (mesh) {
+        mesh.geometry.dispose();
+        mesh.material.dispose();
+      }
+      if (renderer) renderer.dispose();
+      renderer = null;
+    },
+  };
+}
 
 export function initHologramAnimation() {
   const avatarBtn = document.querySelector('[data-mode="avatar"]');
@@ -126,6 +346,7 @@ export function initHologramAnimation() {
     const refreshBtn = document.getElementById("refreshBtn");
     const questionTrigger = document.getElementById("questionTrigger");
     const questionsSelector = document.getElementById("questions-selector");
+    const questionsLabel = document.getElementById("questions-label");
 
     const staticImg = document.getElementById("avatar-static-img");
     const talkingVideo = document.getElementById("avatar-talking-video");
@@ -164,19 +385,34 @@ export function initHologramAnimation() {
     }
     setControlsReady(false);
 
-    if (config.staticImg) {
+    // Neither three.js branch needs the static fallback photo: the legacy
+    // GLB branch goes straight to its own canvas, and the wireframe-idle
+    // branch has no video loop to bridge to. Skip loading it entirely so
+    // there's no broken-image icon/alt text flash for modes without one.
+    const needsStaticImg = !config.isThreeJSLegacy && !config.idleUsesThreeJS;
+    if (config.staticImg && needsStaticImg) {
       staticImg.src = config.staticImg;
-      if (config.isThreeJS) {
-        staticImg.style.display = "none";
-      } else {
-        staticImg.style.display = "block";
-      }
+      staticImg.style.display = "block";
     } else {
       staticImg.style.display = "none";
     }
 
+    // Video mode with a three.js idle loop shows `presentations` instead of
+    // `questions`, played on demand the same way `questions` used to be.
+    const presentationMode =
+      !config.isThreeJSLegacy && !!config.idleUsesThreeJS;
+    const questionItems = presentationMode
+      ? config.presentations || []
+      : config.questions;
+
+    if (questionsLabel) {
+      questionsLabel.textContent = presentationMode
+        ? "Przykładowe prezentacje:"
+        : "Przykładowe pytania:";
+    }
+
     if (questionsSelector) {
-      questionsSelector.innerHTML = config.questions
+      questionsSelector.innerHTML = questionItems
         .map(
           (q, idx) => `
         <button
@@ -222,9 +458,12 @@ export function initHologramAnimation() {
     };
 
     const handleRefreshClick = () => {
-      if (config.isThreeJS && typeof replayThreeAnimation === "function") {
+      if (
+        config.isThreeJSLegacy &&
+        typeof replayThreeAnimation === "function"
+      ) {
         replayThreeAnimation();
-      } else if (!config.isThreeJS) {
+      } else if (!config.isThreeJSLegacy) {
         replayAnimation();
       }
     };
@@ -238,8 +477,8 @@ export function initHologramAnimation() {
       refreshBtn.addEventListener("click", handleRefreshClick);
     }
 
-    // Three.js enabled
-    if (config.isThreeJS) {
+    // Three.js enabled (legacy full GLB model + audio Q&A)
+    if (config.isThreeJSLegacy) {
       [talkingVideo, idleVideo, idleVideoB, questionVideo].forEach((v) => {
         if (v) {
           v.style.display = "none";
@@ -415,90 +654,7 @@ export function initHologramAnimation() {
       }
 
       function setupFallbackGeometry() {
-        const geometry = new THREE.TorusKnotGeometry(1.0, 0.22, 120, 16);
-
-        const positions = geometry.attributes.position;
-        const originals = new Float32Array(positions.array);
-        geometry.userData = { originals: originals };
-
-        const material = new THREE.ShaderMaterial({
-          uniforms: customUniforms,
-          vertexShader: `
-            uniform float uTime;
-            uniform float uVolume;
-            varying float vVolume;
-            varying vec3 vPos;
-            void main() {
-              vVolume = uVolume;
-              vec3 pos = position;
-              vPos = position;
-              
-              float waveIntensity = uVolume / 140.0;
-              float frequency = 2.5;
-              
-              float offsetX = (sin(uTime * 4.5 + pos.y * frequency + pos.z) * 0.6 + cos(uTime * 2.3 - pos.x * 1.9) * 0.4) * waveIntensity * 0.26;
-              float offsetY = (cos(uTime * 3.8 + pos.x * frequency + pos.y) * 0.6 + sin(uTime * 1.8 - pos.z * 2.5) * 0.4) * waveIntensity * 0.26;
-              float offsetZ = (sin(uTime * 4.8 + pos.z * frequency + pos.x) * 0.6 + cos(uTime * 2.6 - pos.y * 2.9) * 0.4) * waveIntensity * 0.26;
-              
-              pos.x += offsetX;
-              pos.y += offsetY;
-              pos.z += offsetZ;
-              
-              vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-              gl_Position = projectionMatrix * mvPosition;
-              
-              gl_PointSize = 1.6 * (45.0 / -mvPosition.z);
-            }
-          `,
-          fragmentShader: `
-            uniform float uIsLightMode;
-            uniform float uTime;
-            varying float vVolume;
-            varying vec3 vPos;
-            
-            vec3 hsl2rgb(vec3 c) {
-              vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0, 0.0, 1.0);
-              return c.z + c.y * (rgb - 0.5) * (1.0 - abs(2.0 * c.z - 1.0));
-            }
-            
-            void main() {
-              vec2 coord = gl_PointCoord - vec2(0.5);
-              float dist = length(coord);
-              if(dist > 0.5) discard;
-              
-              float intensity = smoothstep(0.5, 0.2, dist);
-              float targetAlpha = 0.35 / (1.0 + vVolume * 0.07);
-              if (uIsLightMode > 0.5) targetAlpha = 0.85;
-              
-              vec3 color;
-              
-              float spatialPulse = sin(uTime * 6.5 + vPos.y * 7.0) * cos(uTime * 4.5 + vPos.x * 5.0) * (0.08 + vVolume * 0.008);
-              
-              if (uIsLightMode > 0.5) {
-                if (vVolume < 2.0) {
-                  color = hsl2rgb(vec3(0.58, 0.95, 0.32));
-                } else {
-                  float hueShift = 0.84 + spatialPulse;
-                  color = hsl2rgb(vec3(mod(hueShift, 1.0), 0.95, 0.38));
-                }
-              } else {
-                if (vVolume < 2.0) {
-                  color = hsl2rgb(vec3(0.50, 1.0, 0.50));
-                } else {
-                  float hueShift = 0.80 + spatialPulse;
-                  color = hsl2rgb(vec3(mod(hueShift, 1.0), 1.0, 0.52));
-                }
-              }
-              
-              gl_FragColor = vec4(color * intensity, targetAlpha * intensity);
-            }
-          `,
-          transparent: true,
-          depthWrite: false,
-        });
-
-        fallbackMesh = new THREE.Points(geometry, material);
-        fallbackMesh.scale.setScalar(1.5);
+        fallbackMesh = createHologramFallbackMesh(customUniforms);
         scene.add(fallbackMesh);
       }
 
@@ -933,7 +1089,7 @@ export function initHologramAnimation() {
         btn.classList.add("is-active");
 
         const qIdx = parseInt(btn.getAttribute("data-index"), 10);
-        const qConfig = config.questions[qIdx];
+        const qConfig = questionItems[qIdx];
         if (qConfig && qConfig.audio) {
           playAudioAnswer(qConfig, false);
         }
@@ -1003,6 +1159,44 @@ export function initHologramAnimation() {
     const PATH_DEFAULT_QUESTION_VIDEO = config.question;
     const ANALYSIS_DURATION_MS = 2000;
 
+    // Video-based mode, but the idle state renders the three.js hologram
+    // wireframe instead of looping an idle video.
+    const wireframeLoop = config.idleUsesThreeJS
+      ? createHologramWireframeLoop(canvas3d, container)
+      : null;
+
+    function showIdleWireframe() {
+      if (!wireframeLoop) return;
+      logger.log("showIdleWireframe()", new Error().stack);
+      [talkingVideo, idleVideo, idleVideoB, questionVideo].forEach((v) => {
+        logger.log("showIdleWireframe: pausing", v.id, {
+          paused: v.paused,
+          ended: v.ended,
+          readyState: v.readyState,
+          currentSrc: v.currentSrc,
+        });
+        v.classList.remove("active");
+        v.pause();
+      });
+      // #avatar-static-img is opacity:1 regardless of the .active class
+      // (CSS id specificity), so it has to be hidden explicitly or it shows
+      // through the transparent parts of the wireframe canvas.
+      staticImg.style.display = "none";
+      if (canvas3d) canvas3d.style.display = "block";
+      wireframeLoop.start();
+      logger.log("showIdleWireframe: done", {
+        staticImgDisplay: staticImg.style.display,
+        canvas3dDisplay: canvas3d ? canvas3d.style.display : null,
+      });
+    }
+
+    function hideIdleWireframe() {
+      if (!wireframeLoop) return;
+      logger.log("hideIdleWireframe()");
+      wireframeLoop.stop();
+      if (canvas3d) canvas3d.style.display = "none";
+    }
+
     const preventContext = (e) => e.preventDefault();
     [talkingVideo, idleVideo, idleVideoB, questionVideo].forEach((video) =>
       video.addEventListener("contextmenu", preventContext),
@@ -1021,10 +1215,12 @@ export function initHologramAnimation() {
         .forEach((b) => b.classList.remove("is-active"));
 
       btn.classList.add("is-active");
-      statusText.innerText = "Przetwarzam zapytanie...";
+      statusText.innerText = presentationMode
+        ? "Wczytywanie prezentacji..."
+        : "Przetwarzam zapytanie...";
 
       const qIdx = parseInt(btn.getAttribute("data-index"), 10);
-      const qConfig = config.questions[qIdx];
+      const qConfig = questionItems[qIdx];
       if (qConfig && qConfig.video) {
         requestQuestion(qConfig.video);
       }
@@ -1051,13 +1247,15 @@ export function initHologramAnimation() {
           if (path) videoBlobCache.set(path, null);
         });
       }
-      videoBlobCache.set(PATH_TALKING_VIDEO, null);
-      videoBlobCache.set(PATH_IDLE_VIDEO, null);
-      videoBlobCache.set(PATH_DEFAULT_QUESTION_VIDEO, null);
+      if (PATH_TALKING_VIDEO) videoBlobCache.set(PATH_TALKING_VIDEO, null);
+      if (PATH_IDLE_VIDEO) videoBlobCache.set(PATH_IDLE_VIDEO, null);
+      if (PATH_DEFAULT_QUESTION_VIDEO)
+        videoBlobCache.set(PATH_DEFAULT_QUESTION_VIDEO, null);
 
       const paths = [...videoBlobCache.keys()];
       const progressByPath = new Map(paths.map((p) => [p, 0]));
       const reportProgress = () => {
+        if (paths.length === 0) return;
         let sum = 0;
         progressByPath.forEach((v) => (sum += v));
         onProgress(sum / paths.length);
@@ -1073,10 +1271,14 @@ export function initHologramAnimation() {
         }),
       );
 
-      talkingSource.src = videoBlobCache.get(PATH_TALKING_VIDEO);
-      idleSource.src = videoBlobCache.get(PATH_IDLE_VIDEO);
-      idleSourceB.src = videoBlobCache.get(PATH_IDLE_VIDEO);
-      questionSource.src = videoBlobCache.get(PATH_DEFAULT_QUESTION_VIDEO);
+      if (PATH_TALKING_VIDEO)
+        talkingSource.src = videoBlobCache.get(PATH_TALKING_VIDEO);
+      if (PATH_IDLE_VIDEO) {
+        idleSource.src = videoBlobCache.get(PATH_IDLE_VIDEO);
+        idleSourceB.src = videoBlobCache.get(PATH_IDLE_VIDEO);
+      }
+      if (PATH_DEFAULT_QUESTION_VIDEO)
+        questionSource.src = videoBlobCache.get(PATH_DEFAULT_QUESTION_VIDEO);
 
       [talkingVideo, idleVideo, idleVideoB, questionVideo].forEach((v) =>
         v.load(),
@@ -1122,6 +1324,26 @@ export function initHologramAnimation() {
     }
 
     function playIdleLoop() {
+      if (wireframeLoop) {
+        logger.log("playIdleLoop() [wireframe branch]", {
+          pendingQuestionPath,
+        });
+        statusText.innerText =
+          config.statusIdlePresentation || config.statusIdle;
+        if (questionsGroup) questionsGroup.classList.remove("is-locked");
+        setControlsReady(true);
+
+        if (pendingQuestionPath) {
+          const pathToPlay = pendingQuestionPath;
+          pendingQuestionPath = null;
+          playQuestionVideo(pathToPlay);
+          return;
+        }
+
+        showIdleWireframe();
+        return;
+      }
+
       idleVideo.loop = false;
       idleVideo.currentTime = 0;
       idleVideo.ontimeupdate = null;
@@ -1149,36 +1371,82 @@ export function initHologramAnimation() {
     }
 
     function playQuestionVideo(videoPath) {
+      logger.log("playQuestionVideo()", videoPath, {
+        paused: questionVideo.paused,
+        ended: questionVideo.ended,
+        readyState: questionVideo.readyState,
+        currentSrc: questionVideo.currentSrc,
+      });
+      hideIdleWireframe();
       setControlsReady(false);
       if (questionTrigger) questionTrigger.classList.remove("is-open");
 
-      statusText.innerText = "Odpowiadam na pytanie...";
+      statusText.innerText = presentationMode
+        ? "Prezentuję treść holograficzną..."
+        : "Odpowiadam na pytanie...";
       questionVideo.onended = () => {
+        logger.log("questionVideo onended fired", {
+          currentTime: questionVideo.currentTime,
+          duration: questionVideo.duration,
+          currentSrc: questionVideo.currentSrc,
+        });
         playIdleLoop();
       };
 
       const startPlayback = () => {
-        questionVideo.currentTime = 0;
-        revealVideo(questionVideo, [talkingVideo, idleVideo, idleVideoB]).then(
-          () => {
+        logger.log("playQuestionVideo: startPlayback()", {
+          readyState: questionVideo.readyState,
+          currentTime: questionVideo.currentTime,
+          currentSrc: questionVideo.currentSrc,
+        });
+
+        const beginReveal = () => {
+          revealVideo(questionVideo, [
+            talkingVideo,
+            idleVideo,
+            idleVideoB,
+          ]).then(() => {
             if (questionsSelector) {
               questionsSelector
                 .querySelectorAll(".hologram-btn")
                 .forEach((b) => b.classList.remove("is-active"));
             }
-          },
-        );
+          });
+        };
+
+        // A fresh .load() already resets currentTime to 0, so only seek (and
+        // wait for it to settle) when actually replaying a video that isn't
+        // at the start - calling play() right after setting currentTime can
+        // make the browser abort the play() with the seek it just triggered.
+        if (questionVideo.currentTime !== 0) {
+          logger.log("playQuestionVideo: seeking to 0 before replay");
+          questionVideo.onseeked = () => {
+            questionVideo.onseeked = null;
+            logger.log("playQuestionVideo: seeked, revealing now");
+            beginReveal();
+          };
+          questionVideo.currentTime = 0;
+        } else {
+          beginReveal();
+        }
       };
 
       const cachedSrc = videoBlobCache.get(videoPath);
       const resolvedSrc =
         cachedSrc || new URL(videoPath, window.location.href).href;
+      logger.log("playQuestionVideo: resolved src", {
+        videoPath,
+        cachedSrc,
+        resolvedSrc,
+      });
       if (questionSource.src === resolvedSrc && questionVideo.readyState >= 3) {
+        logger.log("playQuestionVideo: already loaded, playing immediately");
         startPlayback();
         return;
       }
 
       questionVideo.oncanplay = () => {
+        logger.log("playQuestionVideo: oncanplay fired");
         questionVideo.oncanplay = null;
         startPlayback();
       };
@@ -1188,8 +1456,22 @@ export function initHologramAnimation() {
     }
 
     function requestQuestion(videoPath) {
-      if (questionVideo.classList.contains("active") || pendingQuestionPath)
+      if (questionVideo.classList.contains("active") || pendingQuestionPath) {
+        logger.log("requestQuestion: ignored (already active/pending)", {
+          videoPath,
+          questionVideoActive: questionVideo.classList.contains("active"),
+          pendingQuestionPath,
+        });
         return;
+      }
+      if (wireframeLoop && wireframeLoop.isActive()) {
+        logger.log("requestQuestion: wireframe active, playing immediately", {
+          videoPath,
+        });
+        playQuestionVideo(videoPath);
+        return;
+      }
+      logger.log("requestQuestion: queued as pending", { videoPath });
       pendingQuestionPath = videoPath;
     }
 
@@ -1232,6 +1514,17 @@ export function initHologramAnimation() {
       });
     }
 
+    // Presentation mode has no dedicated intro clip: skip straight to the
+    // idle wireframe instead of revealing a (nonexistent) talking video.
+    function enterIdleOrTalking() {
+      if (wireframeLoop) {
+        if (laserLine) laserLine.style.display = "none";
+        playIdleLoop();
+      } else {
+        activateAvatar();
+      }
+    }
+
     statusText.innerText = "Ładowanie prezentacji...";
 
     async function startSequence() {
@@ -1257,29 +1550,35 @@ export function initHologramAnimation() {
         ]);
       } catch (err) {
         console.log("Error while loading resources, run fallback:", err);
-        talkingSource.src = PATH_TALKING_VIDEO;
-        idleSource.src = PATH_IDLE_VIDEO;
-        idleSourceB.src = PATH_IDLE_VIDEO;
-        questionSource.src = PATH_DEFAULT_QUESTION_VIDEO;
+        if (PATH_TALKING_VIDEO) talkingSource.src = PATH_TALKING_VIDEO;
+        if (PATH_IDLE_VIDEO) {
+          idleSource.src = PATH_IDLE_VIDEO;
+          idleSourceB.src = PATH_IDLE_VIDEO;
+        }
+        if (PATH_DEFAULT_QUESTION_VIDEO)
+          questionSource.src = PATH_DEFAULT_QUESTION_VIDEO;
         [talkingVideo, idleVideo, idleVideoB, questionVideo].forEach((v) =>
           v.load(),
         );
 
-        await new Promise((resolve) => {
-          talkingVideo.oncanplaythrough = () => {
-            talkingVideo.oncanplaythrough = null;
-            resolve();
-          };
-        });
+        if (PATH_TALKING_VIDEO) {
+          await new Promise((resolve) => {
+            talkingVideo.oncanplaythrough = () => {
+              talkingVideo.oncanplaythrough = null;
+              resolve();
+            };
+          });
+        }
       }
 
       if (isDestroyed) return;
       statusText.innerText = "Inicjalizacja strumienia...";
-      const t2 = setTimeout(activateAvatar, 600);
+      const t2 = setTimeout(enterIdleOrTalking, 600);
       pendingTimeouts.push(t2);
     }
 
     function replayAnimation() {
+      hideIdleWireframe();
       if (questionsSelector) {
         questionsSelector
           .querySelectorAll(".hologram-btn")
@@ -1301,6 +1600,7 @@ export function initHologramAnimation() {
       idleVideoB.onplaying = null;
       questionVideo.onended = null;
       questionVideo.oncanplay = null;
+      questionVideo.onseeked = null;
 
       [talkingVideo, idleVideo, idleVideoB, questionVideo].forEach((v) => {
         v.pause();
@@ -1309,6 +1609,7 @@ export function initHologramAnimation() {
         v.style.zIndex = "";
       });
       staticImg.style.zIndex = "";
+      if (needsStaticImg) staticImg.style.display = "block";
       staticImg.classList.add("active", "scanning");
 
       if (laserLine) {
@@ -1320,7 +1621,7 @@ export function initHologramAnimation() {
       }
 
       statusText.innerText = config.statusAnalyzing;
-      const t = setTimeout(activateAvatar, ANALYSIS_DURATION_MS);
+      const t = setTimeout(enterIdleOrTalking, ANALYSIS_DURATION_MS);
       pendingTimeouts.push(t);
     }
 
@@ -1349,6 +1650,7 @@ export function initHologramAnimation() {
 
     return function cleanupVideo() {
       isDestroyed = true;
+      if (wireframeLoop) wireframeLoop.dispose();
       clearPendingTimeouts();
       talkingVideo.removeEventListener("contextmenu", preventContext);
       idleVideo.removeEventListener("contextmenu", preventContext);
@@ -1372,6 +1674,7 @@ export function initHologramAnimation() {
       idleVideoB.onplaying = null;
       questionVideo.onended = null;
       questionVideo.oncanplay = null;
+      questionVideo.onseeked = null;
       talkingVideo.pause();
       idleVideo.pause();
       idleVideoB.pause();
@@ -1436,8 +1739,14 @@ async function fetchWithProgress(url, onProgress) {
 }
 
 function revealVideo(video, hideElements) {
+  logger.log("revealVideo() called for", video.id, {
+    currentSrc: video.currentSrc,
+    readyState: video.readyState,
+    paused: video.paused,
+  });
   return new Promise((resolve) => {
     video.onplaying = () => {
+      logger.log("revealVideo: onplaying fired for", video.id);
       video.onplaying = null;
       hideElements.forEach((el) => {
         el.classList.remove("active", "scanning");
@@ -1447,8 +1756,16 @@ function revealVideo(video, hideElements) {
     };
 
     video.classList.add("active");
+    logger.log("revealVideo: calling play() on", video.id);
     video.play().catch((err) => {
       console.log("Error while playing:", err);
+      logger.error("revealVideo: play() rejected for", video.id, {
+        name: err && err.name,
+        message: err && err.message,
+        paused: video.paused,
+        ended: video.ended,
+        readyState: video.readyState,
+      });
       hideElements.forEach((el) => {
         el.classList.remove("active", "scanning");
         if (typeof el.pause === "function") el.pause();

@@ -1,5 +1,11 @@
 import { initContactForm } from "./kontakt.js";
-import { initHologramAnimation } from "./animacja.js?v=2";
+import { setDebug } from "./logger.js";
+
+// Toggle hologram/avatar animation debug logs. Flip to false (or remove) once
+// done debugging - can also be toggled at runtime via ?debug=1 in the URL.
+setDebug(false);
+
+import { initHologramAnimation } from "./animacja.js?v=3";
 import { initPricingPage } from "./pricing.js";
 import { initCookieConsent } from "./cookie-consent.js";
 

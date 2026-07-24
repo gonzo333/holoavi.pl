@@ -1,3 +1,7 @@
+import { createLogger } from "./logger.js";
+
+const logger = createLogger("contact");
+
 const GOOGLE_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbwFNyZXpQEaqzWJtIEr5wjpwt1B_K4OhOny9xZU58ufVHtGv9l8aCkHh5MrIJ-RWNb0/exec";
 
@@ -130,10 +134,13 @@ export function initContactForm() {
     e.preventDefault();
     clearInputErrors();
 
+    logger.log("Contact form submission initiated.");
+
     const formData = sanitizeFormData(e.target);
     const validation = validateFormData(formData);
 
     if (!validation.isValid) {
+      logger.warn("Contact form validation failed:", validation.errors);
       showResponse("Formularz zawiera błędy. Popraw zaznaczone pola.", "error");
 
       form.classList.remove("shake-error");
@@ -161,14 +168,16 @@ export function initContactForm() {
       return;
     }
 
+    logger.log("Contact form validation passed. Sending request to server...");
     setLoadingState(true);
 
     try {
       await sendToGoogleScripts(formData);
+      logger.log("Contact form submitted successfully.");
       showResponse("Dziękujemy za kontakt!", "success");
       form.reset();
     } catch (err) {
-      console.error(err);
+      logger.error("Failed to submit contact form:", err);
       showResponse("Wystąpił błąd sieciowy.", "error");
     } finally {
       setLoadingState(false);

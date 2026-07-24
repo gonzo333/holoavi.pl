@@ -1,43 +1,65 @@
-const STORAGE_KEY = "holoavi:debug";
+import { ENV } from "./config.js";
 
-function readDebugFlag() {
-  try {
-    const fromQuery = new URLSearchParams(window.location.search).get(
-      "debug",
-    );
-    if (fromQuery !== null) return fromQuery !== "0" && fromQuery !== "false";
-    return localStorage.getItem(STORAGE_KEY) === "1";
-  } catch (e) {
-    return false;
+/**
+ * Supported debug modes:
+ * - "all"   : Logs all actions, warnings, and errors.
+ * - "error" : Logs ONLY errors.
+ * - "off"   : Disables all logging output.
+ */
+export const DEBUG_MODES = Object.freeze({
+  ALL: "all",
+  ERROR: "error",
+  OFF: "off",
+});
+
+function normalizeMode(val) {
+  if (val === null || val === undefined) return DEBUG_MODES.OFF;
+  const str = String(val).trim().toLowerCase();
+  if (
+    str === "all" ||
+    str === "verbose" ||
+    str === "1" ||
+    str === "true" ||
+    str === "full"
+  ) {
+    return DEBUG_MODES.ALL;
   }
+  if (str === "error" || str === "errors" || str === "err") {
+    return DEBUG_MODES.ERROR;
+  }
+  return DEBUG_MODES.OFF;
 }
 
-let debugEnabled = readDebugFlag();
+const currentDebugMode = normalizeMode(ENV?.DEBUG_MODE);
 
-export function setDebug(enabled) {
-  debugEnabled = !!enabled;
-  try {
-    localStorage.setItem(STORAGE_KEY, debugEnabled ? "1" : "0");
-  } catch (e) {
-    // localStorage unavailable (private mode, etc.) - flag just won't persist
-  }
+export function getDebugMode() {
+  return currentDebugMode;
 }
 
 export function isDebugEnabled() {
-  return debugEnabled;
+  return currentDebugMode !== DEBUG_MODES.OFF;
 }
 
 export function createLogger(namespace) {
   const prefix = `[${namespace}]`;
   return {
     log: (...args) => {
-      if (debugEnabled) console.log(prefix, ...args);
+      if (currentDebugMode === DEBUG_MODES.ALL) {
+        console.log(prefix, ...args);
+      }
     },
     warn: (...args) => {
-      if (debugEnabled) console.warn(prefix, ...args);
+      if (currentDebugMode === DEBUG_MODES.ALL) {
+        console.warn(prefix, ...args);
+      }
     },
     error: (...args) => {
-      if (debugEnabled) console.error(prefix, ...args);
+      if (
+        currentDebugMode === DEBUG_MODES.ALL ||
+        currentDebugMode === DEBUG_MODES.ERROR
+      ) {
+        console.error(prefix, ...args);
+      }
     },
   };
 }

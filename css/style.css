@@ -149,6 +149,19 @@ body {
     line-height: 1.6;
     color: var(--text-inverse);
     background-color: var(--bg-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+#content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#content>.section:first-child {
+    flex: 1;
 }
 
 h1,
@@ -1377,6 +1390,15 @@ a.card-link:hover {
     padding: 0 10px;
 }
 
+.legal-wrapper {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
 .contact-info-card {
     background: var(--bg-hologram-card);
     border: 1px solid var(--border-tech-purple);
@@ -2227,50 +2249,15 @@ html::view-transition {
         width: 85%;
         height: 90vh;
     }
+
+    .legal-wrapper {
+        max-width: 660px;
+        width: 85%;
+    }
 }
 
-/* SMARTPHONE STYLES */
-@media (max-width: 767px) {
-    .hero-title {
-        letter-spacing: -1px;
-    }
-
-    .hero-section {
-        min-height: unset;
-    }
-
-    .hero-section>.container {
-        padding-top: 5.5rem;
-    }
-
-    .hero-section .page-header {
-        margin-bottom: 1rem;
-    }
-
-    .hero-section .page-header h1 {
-        font-size: clamp(1.8rem, 7vw, 2.6rem);
-    }
-
-    .hero-section .hologram-wrapper {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .section {
-        padding: 2rem 0;
-    }
-
-    .grid-2,
-    .grid-3,
-    .grid-4 {
-        grid-template-columns: 1fr;
-    }
-
-    .form-wrapper {
-        grid-template-columns: 1fr;
-        width: 100%;
-    }
-
+/* TABLET & MOBILE NAVIGATION STYLES */
+@media (max-width: 991px) {
     .nav-hamburger {
         display: flex;
     }
@@ -2347,6 +2334,49 @@ html::view-transition {
         right: 75px;
         width: 40px;
         height: 40px;
+    }
+}
+
+/* SMARTPHONE STYLES */
+@media (max-width: 767px) {
+    .hero-title {
+        letter-spacing: -1px;
+    }
+
+    .hero-section {
+        min-height: unset;
+    }
+
+    .hero-section>.container {
+        padding-top: 5.5rem;
+    }
+
+    .hero-section .page-header {
+        margin-bottom: 1rem;
+    }
+
+    .hero-section .page-header h1 {
+        font-size: clamp(1.8rem, 7vw, 2.6rem);
+    }
+
+    .hero-section .hologram-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .section {
+        padding: 2rem 0;
+    }
+
+    .grid-2,
+    .grid-3,
+    .grid-4 {
+        grid-template-columns: 1fr;
+    }
+
+    .form-wrapper {
+        grid-template-columns: 1fr;
+        width: 100%;
     }
 
     .hologram-wrapper {

@@ -1,9 +1,7 @@
 import { initContactForm } from "./kontakt.js";
-import { setDebug } from "./logger.js";
+import { createLogger } from "./logger.js";
 
-// Toggle hologram/avatar animation debug logs. Flip to false (or remove) once
-// done debugging - can also be toggled at runtime via ?debug=1 in the URL.
-setDebug(false);
+const logger = createLogger("router");
 
 import { initHologramAnimation } from "./animacja.js?v=3";
 import { initPricingPage } from "./pricing.js";
@@ -48,6 +46,13 @@ document.addEventListener("DOMContentLoaded", () => {
     "(prefers-color-scheme: light)",
   ).matches;
   const initialTheme = savedTheme || (systemPrefersLight ? "light" : "dark");
+  logger.log(
+    "Read saved theme preference:",
+    savedTheme ||
+      (systemPrefersLight
+        ? "light (system preference)"
+        : "dark (system preference)"),
+  );
 
   let currentCleanup = null;
 
@@ -107,6 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
       document.documentElement.removeAttribute("data-theme");
     }
     localStorage.setItem("theme", theme);
+    logger.log("Applied theme:", theme);
   }
 
   if (themeToggle) {
@@ -116,6 +122,12 @@ document.addEventListener("DOMContentLoaded", () => {
           ? "light"
           : "dark";
       const newTheme = currentTheme === "light" ? "dark" : "light";
+      logger.log(
+        "Theme toggle clicked, switching from",
+        currentTheme,
+        "to",
+        newTheme,
+      );
 
       const rect = themeToggle.getBoundingClientRect();
       const x = rect.left + rect.width / 2;
@@ -136,6 +148,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function initSubpageScripts(pageUrl) {
+    logger.log("Initializing subpage scripts for:", pageUrl);
     switch (pageUrl) {
       case "home.html":
         currentCleanup = initHologramAnimation();
@@ -167,6 +180,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // historyMode: 'push' | 'replace' | 'none'
   async function loadPage(pageUrl, historyMode = "push") {
+    logger.log("Loading page:", pageUrl, "| History mode:", historyMode);
     try {
       showLoader();
       contentDiv.classList.add("page-fade");
@@ -202,14 +216,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
         contentDiv.classList.remove("page-fade");
         hideLoader();
+        logger.log("Successfully loaded page:", pageUrl);
       }, 200);
     } catch (err) {
-      console.error(err);
+      logger.error("Failed to load page:", pageUrl, err);
       loadPage("error.html", "none");
     }
   }
 
   async function openPageInPopup(pageUrl) {
+    logger.log("Opening popup for page:", pageUrl);
     try {
       const response = await fetch(`pages/${pageUrl}`);
       if (!response.ok) throw new Error("Nie znaleziono zawartości popupu.");
@@ -233,6 +249,7 @@ document.addEventListener("DOMContentLoaded", () => {
       initSubpageScripts(pageUrl);
 
       const closePopup = () => {
+        logger.log("Closing popup for page:", pageUrl);
         overlay.classList.add("popup-closing");
         setTimeout(() => {
           overlay.remove();
@@ -248,7 +265,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (e.target === overlay) closePopup();
       });
     } catch (err) {
-      console.error(err);
+      logger.error("Failed to open page in popup:", pageUrl, err);
     }
   }
 
@@ -309,6 +326,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("popstate", () => {
     const hash = location.hash.slice(1);
     const pageUrl = HASH_TO_PAGE[hash] || "home.html";
+    logger.log("Popstate triggered, navigating to:", pageUrl);
     loadPage(pageUrl, "none");
   });
 

@@ -14,8 +14,7 @@ const assetsHologramPath = "/assets/holograms";
 // Mode configuration
 const MODES = {
   avatar: {
-    isThreeJSLegacy: false, // Full GLB model + audio Q&A (legacy hologram experience)
-    idleUsesThreeJS: false, // Video mode only: render the three.js wireframe loop instead of an idle video
+    isThreeJSLegacy: false, // Avatar uses standard video streams
     talking: assetsAvatarPath + "/magda-start.webm",
     idle: assetsAvatarPath + "/magda-loop.webm",
     question: assetsAvatarPath + "/magda-question.mp4",
@@ -45,18 +44,15 @@ const MODES = {
     ],
   },
   hologram: {
-    // Off by default: flip to true (and idleUsesThreeJS to false) to restore
-    // the full GLB model + audio Q&A experience below (uses `questions`).
-    isThreeJSLegacy: false,
-    // On by default: idle state renders the three.js wireframe loop, and
-    // `presentations` videos are played on demand like `questions` used to be.
-    idleUsesThreeJS: true,
+    // Set to false for modern presentation mode (3D wireframe idle + video presentations).
+    // Flip to true to activate full GLB 3D model + audio Q&A experience.
+    isThreeJSLegacy: true,
     modelPath: assetsHologramPath + "/alex-avatar.glb",
     greetingAudio: assetsHologramPath + "/alex-greeting.mp3",
     staticImg: assetsHologramPath + "/alex-photo.png",
     statusReady: "Hologram 3D aktywny",
     statusIdle: "Zadaj pytanie modelowi 3D.", // isThreeJSLegacy: true
-    statusIdlePresentation: "Gotowy do prezentacji.", // idleUsesThreeJS: true
+    statusIdlePresentation: "Gotowy do prezentacji.", // isThreeJSLegacy: false
     statusAnalyzing: "Inicjalizacja silnika holograficznego...",
     stages: [
       "Uruchamianie silnika renderowania...",
@@ -83,7 +79,7 @@ const MODES = {
         animation: "explain",
       },
     ],
-    // Used when idleUsesThreeJS: true (video + wireframe-idle branch).
+    // Used when isThreeJSLegacy: false (video + wireframe-idle branch).
     presentations: [
       {
         text: "Prezentacja procesu produkcyjnego",
@@ -296,6 +292,7 @@ export function initHologramAnimation() {
   let isMuted = false; // Global mute state
 
   function switchMode(mode) {
+    logger.log("Switching animation mode to:", mode);
     const wrapper = document.querySelector(".hologram-wrapper");
 
     if (wrapper) {
@@ -385,11 +382,9 @@ export function initHologramAnimation() {
     }
     setControlsReady(false);
 
-    // Neither three.js branch needs the static fallback photo: the legacy
-    // GLB branch goes straight to its own canvas, and the wireframe-idle
-    // branch has no video loop to bridge to. Skip loading it entirely so
-    // there's no broken-image icon/alt text flash for modes without one.
-    const needsStaticImg = !config.isThreeJSLegacy && !config.idleUsesThreeJS;
+    // In hologram mode when isThreeJSLegacy is false, presentations videos are displayed.
+    const presentationMode = !config.isThreeJSLegacy && mode === "hologram";
+    const needsStaticImg = !config.isThreeJSLegacy && mode !== "hologram";
     if (config.staticImg && needsStaticImg) {
       staticImg.src = config.staticImg;
       staticImg.style.display = "block";
@@ -397,10 +392,6 @@ export function initHologramAnimation() {
       staticImg.style.display = "none";
     }
 
-    // Video mode with a three.js idle loop shows `presentations` instead of
-    // `questions`, played on demand the same way `questions` used to be.
-    const presentationMode =
-      !config.isThreeJSLegacy && !!config.idleUsesThreeJS;
     const questionItems = presentationMode
       ? config.presentations || []
       : config.questions;
@@ -446,6 +437,7 @@ export function initHologramAnimation() {
 
     const handleMuteClick = () => {
       isMuted = !isMuted;
+      logger.log("Mute toggled. New state:", isMuted ? "muted" : "unmuted");
       if (muteBtn) {
         muteBtn.innerHTML = isMuted ? ICON_MUTED : ICON_UNMUTED;
       }
@@ -458,6 +450,7 @@ export function initHologramAnimation() {
     };
 
     const handleRefreshClick = () => {
+      logger.log("Refresh button clicked. Replaying animation sequence.");
       if (
         config.isThreeJSLegacy &&
         typeof replayThreeAnimation === "function"
@@ -499,11 +492,6 @@ export function initHologramAnimation() {
       let purpleLight, orangeLight, rimLight;
       let holoDust;
       let hologramNodes = [];
-
-      const colDarkIdle = new THREE.Color(0x00ffff);
-      const colDarkTalk = new THREE.Color(0xff00ff);
-      const colLightIdle = new THREE.Color(0x0284c7);
-      const colLightTalk = new THREE.Color(0xb91c1c);
 
       let customUniforms = {
         uTime: { value: 0 },
@@ -748,7 +736,7 @@ export function initHologramAnimation() {
           undefined,
           (err) => {
             if (isDestroyed) return;
-            console.warn(
+            logger.warn(
               "No 3D model available... starting fallback chain.",
               err,
             );
@@ -770,7 +758,7 @@ export function initHologramAnimation() {
           const bufferLength = analyser.frequencyBinCount;
           dataArray = new Uint8Array(bufferLength);
         } catch (e) {
-          console.warn(
+          logger.warn(
             "Something unexpected happened while running Web Audio API:",
             e,
           );
@@ -986,6 +974,10 @@ export function initHologramAnimation() {
       }
 
       function playAudioAnswer(qConfig, isGreeting = false) {
+        logger.log(
+          "Playing audio answer:",
+          typeof qConfig === "string" ? qConfig : qConfig.audio,
+        );
         if (audioObject) {
           audioObject.pause();
         }
@@ -1004,7 +996,7 @@ export function initHologramAnimation() {
           audioObject
             .play()
             .catch((err) =>
-              console.log("The browser refused to autoplay a video:", err),
+              logger.warn("The browser refused to autoplay audio:", err),
             );
         });
 
@@ -1090,6 +1082,10 @@ export function initHologramAnimation() {
 
         const qIdx = parseInt(btn.getAttribute("data-index"), 10);
         const qConfig = questionItems[qIdx];
+        logger.log(
+          "3D mode question button clicked:",
+          qConfig ? qConfig.text : qIdx,
+        );
         if (qConfig && qConfig.audio) {
           playAudioAnswer(qConfig, false);
         }
@@ -1159,15 +1155,20 @@ export function initHologramAnimation() {
     const PATH_DEFAULT_QUESTION_VIDEO = config.question;
     const ANALYSIS_DURATION_MS = 2000;
 
-    // Video-based mode, but the idle state renders the three.js hologram
-    // wireframe instead of looping an idle video.
-    const wireframeLoop = config.idleUsesThreeJS
-      ? createHologramWireframeLoop(canvas3d, container)
-      : null;
+    // In hologram mode (when isThreeJSLegacy is false), render three.js wireframe in idle state.
+    const wireframeLoop =
+      !config.isThreeJSLegacy && mode === "hologram"
+        ? createHologramWireframeLoop(canvas3d, container)
+        : null;
 
     function showIdleWireframe() {
-      if (!wireframeLoop) return;
-      logger.log("showIdleWireframe()", new Error().stack);
+      if (!wireframeLoop) {
+        logger.warn(
+          "showIdleWireframe: wireframeLoop is null or not initialized",
+        );
+        return;
+      }
+      logger.log("showIdleWireframe()");
       [talkingVideo, idleVideo, idleVideoB, questionVideo].forEach((v) => {
         logger.log("showIdleWireframe: pausing", v.id, {
           paused: v.paused,
@@ -1221,6 +1222,10 @@ export function initHologramAnimation() {
 
       const qIdx = parseInt(btn.getAttribute("data-index"), 10);
       const qConfig = questionItems[qIdx];
+      logger.log(
+        "Video mode question/presentation button clicked:",
+        qConfig ? qConfig.text : qIdx,
+      );
       if (qConfig && qConfig.video) {
         requestQuestion(qConfig.video);
       }
@@ -1317,7 +1322,7 @@ export function initHologramAnimation() {
       };
 
       next.play().catch((err) => {
-        console.log("Error while playing:", err);
+        logger.warn("Error while playing idle loop video:", err);
         next.onplaying = null;
         current.loop = true;
       });
@@ -1477,6 +1482,7 @@ export function initHologramAnimation() {
 
     const handleTriggerClick = () => {
       if (!questionTrigger.classList.contains("is-ready")) return;
+      logger.log("Main question trigger button clicked.");
       questionTrigger.classList.add("is-open");
       requestQuestion(PATH_DEFAULT_QUESTION_VIDEO);
     };
@@ -1549,7 +1555,7 @@ export function initHologramAnimation() {
           minStageDelay,
         ]);
       } catch (err) {
-        console.log("Error while loading resources, run fallback:", err);
+        logger.warn("Error while loading resources, running fallback:", err);
         if (PATH_TALKING_VIDEO) talkingSource.src = PATH_TALKING_VIDEO;
         if (PATH_IDLE_VIDEO) {
           idleSource.src = PATH_IDLE_VIDEO;
@@ -1680,6 +1686,16 @@ export function initHologramAnimation() {
       idleVideoB.pause();
       questionVideo.pause();
 
+      [talkingSource, idleSource, idleSourceB, questionSource].forEach((s) => {
+        if (s) s.removeAttribute("src");
+      });
+      [talkingVideo, idleVideo, idleVideoB, questionVideo].forEach((v) => {
+        if (v) {
+          v.removeAttribute("src");
+          v.load();
+        }
+      });
+
       videoBlobCache.forEach((url) => {
         if (url) URL.revokeObjectURL(url);
       });
@@ -1758,7 +1774,6 @@ function revealVideo(video, hideElements) {
     video.classList.add("active");
     logger.log("revealVideo: calling play() on", video.id);
     video.play().catch((err) => {
-      console.log("Error while playing:", err);
       logger.error("revealVideo: play() rejected for", video.id, {
         name: err && err.name,
         message: err && err.message,

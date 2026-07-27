@@ -46,7 +46,7 @@ const MODES = {
   hologram: {
     // Set to false for modern presentation mode (3D wireframe idle + video presentations).
     // Flip to true to activate full GLB 3D model + audio Q&A experience.
-    isThreeJSLegacy: true,
+    isThreeJSLegacy: false,
     modelPath: assetsHologramPath + "/alex-avatar.glb",
     greetingAudio: assetsHologramPath + "/alex-greeting.mp3",
     staticImg: assetsHologramPath + "/alex-photo.png",

@@ -46,6 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
     "(prefers-color-scheme: light)",
   ).matches;
   const initialTheme = savedTheme || (systemPrefersLight ? "light" : "dark");
+  applyTheme(initialTheme);
   logger.log(
     "Read saved theme preference:",
     savedTheme ||
@@ -342,6 +343,10 @@ document.addEventListener("DOMContentLoaded", () => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add("revealed");
+            // Clear inline transitionDelay so hover animations trigger instantly with 0ms delay!
+            setTimeout(() => {
+              entry.target.style.transitionDelay = "";
+            }, 600);
             observer.unobserve(entry.target);
           }
         });

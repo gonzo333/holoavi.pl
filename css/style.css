@@ -2,7 +2,7 @@
 @font-face {
     font-family: 'Roboto';
     src: url('../fonts/roboto-v51-latin_latin-ext_math_symbols-regular.woff2') format('woff2');
-    font-weight: 400;
+    font-weight: 100 900;
     font-style: normal;
     font-display: swap;
 }
@@ -10,7 +10,7 @@
 @font-face {
     font-family: 'Roboto-Serif';
     src: url('../fonts/roboto-serif-v17-latin_latin-ext-regular.woff2') format('woff2');
-    font-weight: 400;
+    font-weight: 100 900;
     font-style: normal;
     font-display: swap;
 }
@@ -18,7 +18,7 @@
 @font-face {
     font-family: 'Roboto-Flex';
     src: url('../fonts/roboto-flex-v30-latin_latin-ext-regular.woff2') format('woff2');
-    font-weight: 400;
+    font-weight: 100 900;
     font-style: normal;
     font-display: swap;
 }
@@ -26,7 +26,7 @@
 @font-face {
     font-family: 'Roboto-Mono';
     src: url('../fonts/roboto-mono-v31-latin_latin-ext-regular.woff2') format('woff2');
-    font-weight: 400;
+    font-weight: 100 900;
     font-style: normal;
     font-display: swap;
 }
@@ -136,6 +136,10 @@
 
 :root[data-theme="light"] .theme-toggle-btn {
     box-shadow: 0 2px 10px rgba(5, 3, 17, 0.08);
+}
+
+:root[data-theme="light"] .popular-tag {
+    color: var(--text-always-bright);
 }
 
 * {
@@ -919,6 +923,47 @@ h4 {
     box-shadow: var(--shadow-neon-hover);
 }
 
+/* Mode-specific button colors & shadows for hero-actions and pricing-tabs-container */
+.hero-actions [data-mode="avatar"].btn-primary,
+.pricing-tabs-container [data-mode="avatar"].btn-primary {
+    background-color: var(--accent-secondary);
+    box-shadow: 0 4px 20px color-mix(in srgb, var(--accent-secondary) 50%, transparent);
+}
+
+.hero-actions [data-mode="avatar"].btn-primary:hover,
+.pricing-tabs-container [data-mode="avatar"].btn-primary:hover {
+    background-color: var(--accent-secondary-hover);
+    box-shadow: 0 6px 25px color-mix(in srgb, var(--accent-secondary-hover) 70%, transparent);
+}
+
+.hero-actions [data-mode="avatar"].btn-secondary:hover,
+.pricing-tabs-container [data-mode="avatar"].btn-secondary:hover {
+    border-color: var(--accent-secondary);
+    color: var(--accent-secondary-hover);
+    box-shadow: 0 0 15px color-mix(in srgb, var(--accent-secondary) 40%, transparent);
+}
+
+.hero-actions [data-mode="hologram"].btn-primary,
+.pricing-tabs-container [data-mode="hologram"].btn-primary {
+    background-color: var(--accent-primary);
+    color: var(--text-always-bright);
+    box-shadow: 0 4px 20px color-mix(in srgb, var(--accent-primary) 50%, transparent);
+}
+
+.hero-actions [data-mode="hologram"].btn-primary:hover,
+.pricing-tabs-container [data-mode="hologram"].btn-primary:hover {
+    background-color: var(--accent-primary-hover);
+    color: var(--text-always-bright);
+    box-shadow: 0 6px 25px color-mix(in srgb, var(--accent-primary-hover) 70%, transparent);
+}
+
+.hero-actions [data-mode="hologram"].btn-secondary:hover,
+.pricing-tabs-container [data-mode="hologram"].btn-secondary:hover {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary-hover);
+    box-shadow: 0 0 15px color-mix(in srgb, var(--accent-primary) 40%, transparent);
+}
+
 .btn-secondary {
     background: var(--bg-overlay-btn-secondary);
     color: var(--text-inverse);
@@ -952,17 +997,37 @@ h4 {
 /* SERVICES SECTION */
 .grid-2 .card,
 .grid-3 .card {
+    position: relative;
+    z-index: 1;
     background-color: var(--bg-inverse);
     border: 1px solid var(--border-tech-purple);
     box-shadow: var(--shadow-dark);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease;
+}
+
+.grid-2 .card::before,
+.grid-3 .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 10px 30px rgba(129, 26, 190, 0.35);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.grid-2 .card:hover::before,
+.grid-3 .card:hover::before {
+    opacity: 1;
 }
 
 .grid-2 .card:hover,
 .grid-3 .card:hover {
     transform: translateY(-4px);
     border-color: var(--accent-secondary);
-    box-shadow: 0 10px 30px rgba(129, 26, 190, 0.25);
+    z-index: 10;
 }
 
 .grid-2 .card h3 {
@@ -1135,6 +1200,9 @@ a.card-link:hover {
 }
 
 .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 25px;
     margin-top: 40px;
     align-items: stretch;
 }
@@ -1155,11 +1223,18 @@ a.card-link:hover {
 
 .pricing-card-price {
     font-size: 2.8rem;
-    margin: 15px 0;
+    margin: 15px 0 20px 0;
     color: var(--text-inverse);
     font-weight: bold;
     letter-spacing: -1px;
     line-height: 1.15;
+}
+
+.pricing-card-desc {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 20px;
 }
 
 .pricing-price-primary {
@@ -1191,14 +1266,6 @@ a.card-link:hover {
     font-weight: 500;
     color: inherit;
     opacity: 0.8;
-}
-
-.pricing-card .pricing-card-desc {
-    color: rgba(255, 255, 255, 0.7) !important;
-}
-
-.premium-card .pricing-card-desc {
-    color: var(--text-muted) !important;
 }
 
 .pricing-card-tip {
@@ -1254,14 +1321,16 @@ a.card-link:hover {
 .pricing-features-core li {
     font-weight: 600;
     display: flex;
-    align-items: center;
+    align-items: baseline;
     min-height: 2.6em;
+    gap: 0.35em;
+    white-space: pre-wrap;
 }
 
 .pricing-features-extra {
     margin-top: 0;
     padding-top: 1rem;
-    border-top: 1px dashed var(--border-alpha-medium);
+    border-top: 1px solid var(--border-alpha-medium);
 }
 
 .pricing-features-extra li {
@@ -1272,12 +1341,12 @@ a.card-link:hover {
 .pricing-card .pricing-currency {
     font-size: 1rem;
     font-weight: normal;
-    color: rgba(255, 255, 255, 0.65);
+    opacity: 0.65;
     white-space: nowrap;
 }
 
 .premium-card .pricing-currency {
-    color: var(--text-muted);
+    color: var(--text-inverse);
 }
 
 .pricing-currency {
@@ -1301,17 +1370,18 @@ a.card-link:hover {
     background-color: rgba(129, 26, 190, 0.15);
     color: var(--accent-secondary);
     border-color: var(--accent-secondary);
-    transform: translateY(-2px);
 }
 
 .premium-card {
-    background: var(--bg-inverse) !important;
-    border: 2px solid var(--accent-secondary) !important;
-    box-shadow: var(--shadow-neon) !important;
+    background: var(--bg-inverse);
+    border: 2px solid var(--accent-secondary);
+    box-shadow: var(--shadow-neon);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .premium-card:hover {
-    box-shadow: var(--shadow-neon-hover) !important;
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-neon-hover);
 }
 
 .premium-card .pricing-features p {
@@ -1328,7 +1398,7 @@ a.card-link:hover {
     left: 50%;
     transform: translateX(-50%);
     background: var(--accent-secondary);
-    color: var(--bg-inverse);
+    color: var(--text-primary);
     padding: 4px 14px;
     font-family: 'Roboto-Mono', monospace;
     font-size: 11px;
@@ -1376,7 +1446,7 @@ a.card-link:hover {
 
 .pricing-view.view-active {
     display: block;
-    animation: fadeInPricing 0.6s ease-in-out forwards;
+    animation: fadeInPricing 0.3s ease-out;
 }
 
 /* CONTACT SECTION */
@@ -1974,6 +2044,11 @@ form.card button[type="submit"] {
     transition: color 0.2s ease;
 }
 
+.stronger {
+    font-weight: 800;
+    font-size: 1.2em;
+}
+
 /* KEYFRAMES FOR ANIMATIONS */
 @keyframes popupBgFadeIn {
     from {
@@ -2357,6 +2432,31 @@ html::view-transition {
 
     .hero-section .page-header h1 {
         font-size: clamp(1.8rem, 7vw, 2.6rem);
+    }
+
+    .hero-actions,
+    .pricing-tabs-container {
+        flex-direction: row;
+        justify-content: center;
+        align-items: stretch;
+        width: 100%;
+        gap: 10px;
+    }
+
+    .hero-actions .hologram-btn,
+    .hero-actions a.hologram-btn,
+    .hero-actions button.hologram-btn,
+    .pricing-tabs-container .hologram-btn {
+        flex: 1;
+        height: auto;
+        min-height: 48px;
+        padding: 10px 12px;
+        font-size: 11px;
+        line-height: 1.25;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .hero-section .hologram-wrapper {

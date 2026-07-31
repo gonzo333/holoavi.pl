@@ -49,6 +49,7 @@ const MODES = {
     isThreeJSLegacy: false,
     modelPath: assetsHologramPath + "/alex-avatar.glb",
     greetingAudio: assetsHologramPath + "/alex-greeting.mp3",
+    talking: assetsHologramPath + "/presentations/production-processing.mp4",
     staticImg: assetsHologramPath + "/alex-photo.png",
     statusReady: "Hologram 3D aktywny",
     statusIdle: "Zadaj pytanie modelowi 3D.", // isThreeJSLegacy: true
@@ -435,11 +436,23 @@ export function initHologramAnimation() {
       return config.stages[index];
     }
 
+    const updateMuteButtonLabel = () => {
+      if (!muteBtn) return;
+      const lang = localStorage.getItem("naapp-lang") || "pl";
+      const dict = window.naappTranslations?.[lang] || window.naappTranslations?.pl || {};
+      const labelText = isMuted
+        ? (dict.tooltip_sound_on || "Włącz dźwięk")
+        : (dict.tooltip_sound_off || "Wycisz dźwięk");
+      muteBtn.setAttribute("title", labelText);
+      muteBtn.setAttribute("aria-label", labelText);
+    };
+
     const handleMuteClick = () => {
       isMuted = !isMuted;
       logger.log("Mute toggled. New state:", isMuted ? "muted" : "unmuted");
       if (muteBtn) {
         muteBtn.innerHTML = isMuted ? ICON_MUTED : ICON_UNMUTED;
+        updateMuteButtonLabel();
       }
       [talkingVideo, idleVideo, idleVideoB, questionVideo].forEach((v) => {
         if (v) v.muted = isMuted;
@@ -463,6 +476,7 @@ export function initHologramAnimation() {
 
     if (muteBtn) {
       muteBtn.innerHTML = isMuted ? ICON_MUTED : ICON_UNMUTED;
+      updateMuteButtonLabel();
       muteBtn.addEventListener("click", handleMuteClick);
     }
     if (refreshBtn) {
@@ -1155,11 +1169,7 @@ export function initHologramAnimation() {
     const PATH_DEFAULT_QUESTION_VIDEO = config.question;
     const ANALYSIS_DURATION_MS = 2000;
 
-    // In hologram mode (when isThreeJSLegacy is false), render three.js wireframe in idle state.
-    const wireframeLoop =
-      !config.isThreeJSLegacy && mode === "hologram"
-        ? createHologramWireframeLoop(canvas3d, container)
-        : null;
+    const wireframeLoop = null;
 
     function showIdleWireframe() {
       if (!wireframeLoop) {
@@ -1329,6 +1339,31 @@ export function initHologramAnimation() {
     }
 
     function playIdleLoop() {
+      if (presentationMode) {
+        logger.log("playIdleLoop() [presentation mode]", {
+          pendingQuestionPath,
+        });
+        statusText.innerText =
+          config.statusIdlePresentation || config.statusIdle;
+        if (questionsGroup) questionsGroup.classList.remove("is-locked");
+        setControlsReady(true);
+
+        if (questionsSelector) {
+          questionsSelector
+            .querySelectorAll(".hologram-btn")
+            .forEach((b) => b.classList.remove("is-active"));
+        }
+
+        if (pendingQuestionPath) {
+          const pathToPlay = pendingQuestionPath;
+          pendingQuestionPath = null;
+          playQuestionVideo(pathToPlay);
+          return;
+        }
+
+        return;
+      }
+
       if (wireframeLoop) {
         logger.log("playIdleLoop() [wireframe branch]", {
           pendingQuestionPath,
@@ -1461,12 +1496,26 @@ export function initHologramAnimation() {
     }
 
     function requestQuestion(videoPath) {
-      if (questionVideo.classList.contains("active") || pendingQuestionPath) {
+      if (
+        questionVideo.classList.contains("active") &&
+        !questionVideo.paused &&
+        !questionVideo.ended
+      ) {
         logger.log("requestQuestion: ignored (already active/pending)", {
           videoPath,
           questionVideoActive: questionVideo.classList.contains("active"),
           pendingQuestionPath,
         });
+        return;
+      }
+      if (presentationMode) {
+        logger.log(
+          "requestQuestion: presentation mode, playing video immediately",
+          {
+            videoPath,
+          },
+        );
+        playQuestionVideo(videoPath);
         return;
       }
       if (wireframeLoop && wireframeLoop.isActive()) {
@@ -1511,7 +1560,9 @@ export function initHologramAnimation() {
     function activateAvatar() {
       if (laserLine) laserLine.style.display = "none";
 
-      statusText.innerText = config.statusReady;
+      statusText.innerText = presentationMode
+        ? "Prezentuję treść holograficzną..."
+        : config.statusReady;
       talkingVideo.currentTime = 0;
       armTalkingVideoTransition();
 

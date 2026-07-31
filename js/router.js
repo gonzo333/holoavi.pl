@@ -215,6 +215,11 @@ document.addEventListener("DOMContentLoaded", () => {
         initSubpageScripts(pageUrl);
         initScrollReveal();
 
+        const currentLang = localStorage.getItem("naapp-lang") || "pl";
+        if (typeof window.setLanguage === "function") {
+          window.setLanguage(currentLang);
+        }
+
         contentDiv.classList.remove("page-fade");
         hideLoader();
         logger.log("Successfully loaded page:", pageUrl);
@@ -248,6 +253,11 @@ document.addEventListener("DOMContentLoaded", () => {
       document.body.style.overflow = "hidden";
 
       initSubpageScripts(pageUrl);
+
+      const currentLang = localStorage.getItem("naapp-lang") || "pl";
+      if (typeof window.setLanguage === "function") {
+        window.setLanguage(currentLang);
+      }
 
       const closePopup = () => {
         logger.log("Closing popup for page:", pageUrl);
@@ -295,27 +305,18 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- Navigation clicks (header) ---
-  allNavLinks.forEach((link) => {
-    link.addEventListener("click", (e) => {
-      e.preventDefault();
-      const page = link.getAttribute("data-page");
-      if (page) {
-        closeNav();
-        loadPage(page);
-      }
-    });
-  });
-
-  // --- Navigation clicks (content area) ---
-  contentDiv.addEventListener("click", (e) => {
+  // --- Navigation clicks (global delegation for header, content, footer, cookie banner, and popups) ---
+  document.addEventListener("click", (e) => {
     const pageLink = e.target.closest("a[data-page]");
     const popupLink = e.target.closest("a[data-popup]");
 
     if (pageLink) {
       e.preventDefault();
       const page = pageLink.getAttribute("data-page");
-      if (page) loadPage(page);
+      if (page) {
+        closeNav();
+        loadPage(page);
+      }
     } else if (popupLink) {
       e.preventDefault();
       const popupPage = popupLink.getAttribute("data-popup");

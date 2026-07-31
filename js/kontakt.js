@@ -26,27 +26,31 @@ function sanitizeFormData(formElement) {
 }
 
 function validateFormData(data) {
+  const lang = localStorage.getItem("naapp-lang") || "pl";
+  const dict = window.naappTranslations?.[lang] || window.naappTranslations?.pl || {};
+
   const validationRules = [
     {
       field: "imie",
       test: (value) => value.length > 0,
-      message: "Poznajmy się! Jak możemy się do Ciebie zwracać?",
+      message: dict.contact_err_name || "Poznajmy się! Jak możemy się do Ciebie zwracać?",
     },
     {
       field: "email",
       test: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
-      message: "Wprowadź poprawny adres e-mail (np. jan@Kowalski.pl).",
+      message: dict.contact_err_email || "Wprowadź poprawny adres e-mail (np. jan@kowalski.pl).",
     },
     {
       field: "nrtel",
       test: (value) => !value || /^\+?[0-9]{9,15}$/.test(value),
       message:
+        dict.contact_err_phone ||
         "Wprowadź poprawny numer telefonu (dokładnie 9 cyfr lub format międzynarodowy).",
     },
     {
       field: "wiadomosc",
       test: (value) => value.length > 0,
-      message: "Co chciałbyś nam przekazać?",
+      message: dict.contact_err_msg || "Co chciałbyś nam przekazać?",
     },
   ];
 
@@ -105,8 +109,12 @@ function showResponse(message, type = "success") {
 function setLoadingState(isLoading) {
   const submitBtn = document.getElementById("submitBtn");
   if (!submitBtn) return;
+  const lang = localStorage.getItem("naapp-lang") || "pl";
+  const dict = window.naappTranslations?.[lang] || window.naappTranslations?.pl || {};
   submitBtn.disabled = isLoading;
-  submitBtn.innerText = isLoading ? "Wysyłanie..." : "Wyślij wiadomość";
+  submitBtn.innerText = isLoading
+    ? (dict.contact_msg_sending || "Wysyłanie...")
+    : (dict.contact_btn_send || "Wyślij wiadomość");
 }
 
 export function initContactForm() {
@@ -141,7 +149,9 @@ export function initContactForm() {
 
     if (!validation.isValid) {
       logger.warn("Contact form validation failed:", validation.errors);
-      showResponse("Formularz zawiera błędy. Popraw zaznaczone pola.", "error");
+      const lang = localStorage.getItem("naapp-lang") || "pl";
+      const dict = window.naappTranslations?.[lang] || window.naappTranslations?.pl || {};
+      showResponse(dict.contact_err_form || "Formularz zawiera błędy. Popraw zaznaczone pola.", "error");
 
       form.classList.remove("shake-error");
       void form.offsetWidth;
@@ -174,11 +184,15 @@ export function initContactForm() {
     try {
       await sendToGoogleScripts(formData);
       logger.log("Contact form submitted successfully.");
-      showResponse("Dziękujemy za kontakt!", "success");
+      const lang = localStorage.getItem("naapp-lang") || "pl";
+      const dict = window.naappTranslations?.[lang] || window.naappTranslations?.pl || {};
+      showResponse(dict.contact_msg_success || "Dziękujemy! Twoja wiadomość została wysłana.", "success");
       form.reset();
     } catch (err) {
       logger.error("Failed to submit contact form:", err);
-      showResponse("Wystąpił błąd sieciowy.", "error");
+      const lang = localStorage.getItem("naapp-lang") || "pl";
+      const dict = window.naappTranslations?.[lang] || window.naappTranslations?.pl || {};
+      showResponse(dict.contact_msg_error || "Wystąpił błąd podczas wysyłania wiadomości.", "error");
     } finally {
       setLoadingState(false);
     }

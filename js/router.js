@@ -1,5 +1,9 @@
 import { initContactForm } from "./kontakt.js";
-import { initHologramAnimation } from "./animacja.js?v=2";
+import { createLogger } from "./logger.js";
+
+const logger = createLogger("router");
+
+import { initHologramAnimation } from "./animacja.js?v=3";
 import { initPricingPage } from "./pricing.js";
 import { initCookieConsent } from "./cookie-consent.js";
 
@@ -35,6 +39,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const loader = document.getElementById("page-loader");
   const navToggle = document.getElementById("navToggle");
   const navLinks = document.getElementById("navLinks");
+  const themeToggle = document.getElementById("themeToggle");
+
+  const savedTheme = localStorage.getItem("theme");
+  const systemPrefersLight = window.matchMedia(
+    "(prefers-color-scheme: light)",
+  ).matches;
+  const initialTheme = savedTheme || (systemPrefersLight ? "light" : "dark");
+  applyTheme(initialTheme);
+  logger.log(
+    "Read saved theme preference:",
+    savedTheme ||
+      (systemPrefersLight
+        ? "light (system preference)"
+        : "dark (system preference)"),
+  );
 
   let currentCleanup = null;
 
@@ -87,7 +106,50 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function applyTheme(theme) {
+    if (theme === "light") {
+      document.documentElement.setAttribute("data-theme", "light");
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+    localStorage.setItem("theme", theme);
+    logger.log("Applied theme:", theme);
+  }
+
+  if (themeToggle) {
+    themeToggle.addEventListener("click", (e) => {
+      const currentTheme =
+        document.documentElement.getAttribute("data-theme") === "light"
+          ? "light"
+          : "dark";
+      const newTheme = currentTheme === "light" ? "dark" : "light";
+      logger.log(
+        "Theme toggle clicked, switching from",
+        currentTheme,
+        "to",
+        newTheme,
+      );
+
+      const rect = themeToggle.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+
+      document.documentElement.style.setProperty("--clip-x", `${x}px`);
+      document.documentElement.style.setProperty("--clip-y", `${y}px`);
+
+      if (!document.startViewTransition) {
+        applyTheme(newTheme);
+        return;
+      }
+
+      document.startViewTransition(() => {
+        applyTheme(newTheme);
+      });
+    });
+  }
+
   function initSubpageScripts(pageUrl) {
+    logger.log("Initializing subpage scripts for:", pageUrl);
     switch (pageUrl) {
       case "home.html":
         currentCleanup = initHologramAnimation();
@@ -119,6 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // historyMode: 'push' | 'replace' | 'none'
   async function loadPage(pageUrl, historyMode = "push") {
+    logger.log("Loading page:", pageUrl, "| History mode:", historyMode);
     try {
       showLoader();
       contentDiv.classList.add("page-fade");
@@ -150,17 +213,25 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         initSubpageScripts(pageUrl);
+        initScrollReveal();
+
+        const currentLang = localStorage.getItem("naapp-lang") || "pl";
+        if (typeof window.setLanguage === "function") {
+          window.setLanguage(currentLang);
+        }
 
         contentDiv.classList.remove("page-fade");
         hideLoader();
+        logger.log("Successfully loaded page:", pageUrl);
       }, 200);
     } catch (err) {
-      console.error(err);
+      logger.error("Failed to load page:", pageUrl, err);
       loadPage("error.html", "none");
     }
   }
 
   async function openPageInPopup(pageUrl) {
+    logger.log("Opening popup for page:", pageUrl);
     try {
       const response = await fetch(`pages/${pageUrl}`);
       if (!response.ok) throw new Error("Nie znaleziono zawartości popupu.");
@@ -183,7 +254,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
       initSubpageScripts(pageUrl);
 
+      const currentLang = localStorage.getItem("naapp-lang") || "pl";
+      if (typeof window.setLanguage === "function") {
+        window.setLanguage(currentLang);
+      }
+
       const closePopup = () => {
+        logger.log("Closing popup for page:", pageUrl);
         overlay.classList.add("popup-closing");
         setTimeout(() => {
           overlay.remove();
@@ -199,7 +276,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (e.target === overlay) closePopup();
       });
     } catch (err) {
-      console.error(err);
+      logger.error("Failed to open page in popup:", pageUrl, err);
     }
   }
 
@@ -228,27 +305,18 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- Navigation clicks (header) ---
-  allNavLinks.forEach((link) => {
-    link.addEventListener("click", (e) => {
-      e.preventDefault();
-      const page = link.getAttribute("data-page");
-      if (page) {
-        closeNav();
-        loadPage(page);
-      }
-    });
-  });
-
-  // --- Navigation clicks (content area) ---
-  contentDiv.addEventListener("click", (e) => {
+  // --- Navigation clicks (global delegation for header, content, footer, cookie banner, and popups) ---
+  document.addEventListener("click", (e) => {
     const pageLink = e.target.closest("a[data-page]");
     const popupLink = e.target.closest("a[data-popup]");
 
     if (pageLink) {
       e.preventDefault();
       const page = pageLink.getAttribute("data-page");
-      if (page) loadPage(page);
+      if (page) {
+        closeNav();
+        loadPage(page);
+      }
     } else if (popupLink) {
       e.preventDefault();
       const popupPage = popupLink.getAttribute("data-popup");
@@ -260,13 +328,46 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("popstate", () => {
     const hash = location.hash.slice(1);
     const pageUrl = HASH_TO_PAGE[hash] || "home.html";
+    logger.log("Popstate triggered, navigating to:", pageUrl);
     loadPage(pageUrl, "none");
   });
+
+  // --- Scroll reveal ---
+  function initScrollReveal() {
+    const targets = document.querySelectorAll(
+      ".card, .tech-style, .section-footer-cta, .media-card",
+    );
+    if (!targets.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("revealed");
+            // Clear inline transitionDelay so hover animations trigger instantly with 0ms delay!
+            setTimeout(() => {
+              entry.target.style.transitionDelay = "";
+            }, 600);
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1 },
+    );
+
+    targets.forEach((el, i) => {
+      el.classList.add("reveal");
+      el.style.transitionDelay = `${Math.min(i * 0.06, 0.4)}s`;
+      observer.observe(el);
+    });
+  }
 
   // --- Initial load ---
   const initialHash = location.hash.slice(1);
   const initialPage = HASH_TO_PAGE[initialHash] || "home.html";
   loadPage(initialPage, "replace");
+
+  applyTheme(initialTheme);
 
   initCookieConsent(loadPage);
 });

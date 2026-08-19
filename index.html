@@ -18,8 +18,14 @@
     />
     <meta property="og:image" content="assets/favicon.svg" />
     <meta property="og:locale" content="pl_PL" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="css/style.css" />
-    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/glightbox/dist/css/glightbox.min.css"
@@ -31,30 +37,61 @@
     <header class="sticky-nav">
       <div class="container nav-container">
         <div class="logo">
-          <a href="#" data-page="home.html"
-            ><img src="assets/logo.svg" alt="HOLOAVI Logo"
-          /></a>
+          <a href="#" data-page="home.html">
+            <img src="assets/logo.svg" alt="HOLOAVI Logo" />
+          </a>
         </div>
-        <button
-          class="nav-hamburger"
-          id="navToggle"
-          aria-label="Otwórz menu"
-          aria-expanded="false"
-        >
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
-        <nav aria-label="Główna nawigacja">
-          <ul class="nav-links" id="navLinks">
-            <li><a href="#" data-page="home.html">Start</a></li>
-            <li><a href="#" data-page="awatary.html">Awatary</a></li>
-            <li><a href="#" data-page="hologramy.html">Hologramy</a></li>
-            <li><a href="#" data-page="cennik.html">Cennik</a></li>
-            <li><a href="#" data-page="o-nas.html">O nas</a></li>
-            <li><a href="#" data-page="kontakt.html">Kontakt</a></li>
-          </ul>
-        </nav>
+
+        <div class="nav-right-group">
+          <button
+            class="nav-hamburger"
+            id="navToggle"
+            data-i18n-title="nav_menu_toggle"
+            data-i18n-aria-label="nav_menu_toggle"
+            title="Otwórz menu"
+            aria-label="Otwórz menu"
+            aria-expanded="false"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+
+          <nav aria-label="Główna nawigacja">
+            <ul class="nav-links" id="navLinks">
+              <li>
+                <a href="#" data-page="home.html" data-i18n="nav_start"
+                  >Start</a
+                >
+              </li>
+              <li>
+                <a href="#" data-page="awatary.html" data-i18n="nav_avatars"
+                  >Awatary</a
+                >
+              </li>
+              <li>
+                <a href="#" data-page="hologramy.html" data-i18n="nav_holograms"
+                  >Hologramy</a
+                >
+              </li>
+              <li>
+                <a href="#" data-page="cennik.html" data-i18n="nav_pricing"
+                  >Cennik</a
+                >
+              </li>
+              <li>
+                <a href="#" data-page="o-nas.html" data-i18n="nav_about"
+                  >O nas</a
+                >
+              </li>
+              <li>
+                <a href="#" data-page="kontakt.html" data-i18n="nav_contact"
+                  >Kontakt</a
+                >
+              </li>
+            </ul>
+          </nav>
+        </div>
       </div>
     </header>
 
@@ -68,32 +105,24 @@
               ><img src="assets/logo.svg" alt="HOLOAVI Logo"
             /></a>
           </div>
-          <p>
+          <p data-i18n="footer_tagline">
             Ożywiamy prezentacje każdej firmy, budujemy zaangażowanie i emocje
             klientów.
           </p>
         </div>
-        <div class="footer-segment">
-          <h3>Przydatne linki</h3>
-          <ul class="footer-links">
-            <li><a href="#" data-page="home.html">Start</a></li>
-            <li><a href="#" data-page="awatary.html">Awatary</a></li>
-            <li><a href="#" data-page="hologramy.html">Hologramy</a></li>
-            <li><a href="#" data-page="cennik.html">Cennik</a></li>
-            <li><a href="#" data-page="o-nas.html">O nas</a></li>
-            <li><a href="#" data-page="kontakt.html">Kontakt</a></li>
-          </ul>
-        </div>
-        <div class="footer-segment">
-          <h3>Kontakt</h3>
-          <p>✉️<a href="mailto:kontakt@holoavi.pl"> kontakt@holoavi.pl</a></p>
-        </div>
       </div>
       <div class="footer-bottom">
-        <span>&copy; 2026 NAAPP New Advance Applications Paweł Nowaczek.</span>
-        <span><a href="#" data-page="kontakt.html">Kontakt</a></span
+        <span data-i18n="footer_copy"
+          >&copy; 2026 NAAPP New Advance Applications Paweł Nowaczek.</span
+        >
+        <span
+          ><a href="#" data-page="Regulamin.html" data-i18n="footer_terms"
+            >Regulamin</a
+          ></span
         ><span
-          ><a href="#" data-page="polityka.html">Polityka Prywatności</a></span
+          ><a href="#" data-page="polityka.html" data-i18n="footer_privacy"
+            >Polityka Prywatności</a
+          ></span
         >
       </div>
     </footer>
@@ -107,23 +136,155 @@
       aria-label="Informacja o plikach cookie"
     >
       <div class="cookie-banner-inner">
-        <p>
+        <p data-i18n-html="cookie_text">
           Ta strona ładuje zasoby zewnętrzne (CDN) oraz przetwarza dane
           przesłane przez formularz kontaktowy. Dane te wykorzystujemy wyłącznie
           w celu obsługi zapytań i zapobiegania spamowi. Więcej w
-          <a href="#" class="cookie-policy-link">Polityce Prywatności</a>.
+          <a
+            href="#"
+            class="cookie-policy-link"
+            data-page="polityka.html"
+            data-i18n="footer_privacy"
+            >Polityce Prywatności</a
+          >.
         </p>
         <div class="cookie-banner-actions">
-          <button id="cookieDecline" class="hologram-btn btn-tertiary">
+          <button
+            id="cookieDecline"
+            class="hologram-btn btn-tertiary"
+            data-i18n="cookie_decline"
+          >
             Odrzucam
           </button>
-          <button id="cookieAccept" class="hologram-btn btn-primary">
+          <button
+            id="cookieAccept"
+            class="hologram-btn btn-primary"
+            data-i18n="cookie_accept"
+          >
             Rozumiem
           </button>
         </div>
       </div>
     </div>
-
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+          "three/examples/jsm/loaders/GLTFLoader.js": "https://unpkg.com/three@0.128.0/examples/jsm/loaders/GLTFLoader.js"
+        }
+      }
+    </script>
+    <script type="module" src="js/translation.js"></script>
     <script type="module" src="js/router.js?v=3"></script>
+
+    <div class="lang-dropdown" id="langDropdown">
+      <button
+        class="lang-dropdown-trigger"
+        id="langTrigger"
+        data-i18n-title="tooltip_lang"
+        data-i18n-aria-label="tooltip_lang"
+        title="Wybierz język"
+        aria-label="Wybierz język"
+        aria-expanded="false"
+      >
+        <img
+          id="currentFlagImg"
+          src="assets/translations/pl.svg"
+          alt="PL"
+          class="flag-icon"
+        />
+        <span class="dropdown-caret">▾</span>
+      </button>
+      <div class="lang-dropdown-menu" id="langMenu">
+        <button
+          class="lang-option active"
+          data-lang="pl"
+          data-i18n-title="tooltip_lang_pl"
+          data-i18n-aria-label="tooltip_lang_pl"
+          title="Polski"
+        >
+          <img src="assets/translations/pl.svg" alt="PL" class="flag-icon" />
+          <span>Polski</span>
+        </button>
+        <button
+          class="lang-option"
+          data-lang="en"
+          data-i18n-title="tooltip_lang_en"
+          data-i18n-aria-label="tooltip_lang_en"
+          title="English"
+        >
+          <img
+            src="assets/translations/gb-eng.svg"
+            alt="EN"
+            class="flag-icon"
+          />
+          <span>English</span>
+        </button>
+        <button
+          class="lang-option"
+          data-lang="es"
+          data-i18n-title="tooltip_lang_es"
+          data-i18n-aria-label="tooltip_lang_es"
+          title="Español"
+        >
+          <img src="assets/translations/es.svg" alt="ES" class="flag-icon" />
+          <span>Español</span>
+        </button>
+        <button
+          class="lang-option"
+          data-lang="uk"
+          data-i18n-title="tooltip_lang_uk"
+          data-i18n-aria-label="tooltip_lang_uk"
+          title="Українська"
+        >
+          <img src="assets/translations/ua.svg" alt="UA" class="flag-icon" />
+          <span>Українська</span>
+        </button>
+      </div>
+    </div>
+
+    <button
+      id="themeToggle"
+      class="theme-toggle-btn"
+      data-i18n-title="tooltip_theme"
+      data-i18n-aria-label="tooltip_theme"
+      title="Przełącz motyw"
+      aria-label="Przełącz motyw"
+    >
+      <span class="icon-wrapper">
+        <svg
+          class="icon-sun"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg
+          class="icon-moon"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </span>
+    </button>
   </body>
 </html>

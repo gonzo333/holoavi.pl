@@ -1,22 +1,57 @@
-<section class="section">
+<section class="section hero-section">
+  <div class="hero-bg-grid" aria-hidden="true"></div>
   <div class="container">
-    <h1 class="badge">> Awatary i hologramy przyszłości</h1>
-    <h3>Nowoczesne rozwiązania eventowe wsparte AI.</h3>
+    <div class="page-header">
+      <span class="badge" data-i18n="home_badge"
+        >> AWATARY I HOLOGRAMY PRZYSZŁOŚCI</span
+      >
+      <h1 data-i18n="home_title">
+        Nowoczesne rozwiązania eventowe wsparte AI.
+      </h1>
+      <p class="lead" data-i18n="home_lead">
+        Interaktywne awatary AI i urządzenia holograficzne dla firm, eventów i
+        showroomów. Działające wdrożenia, nie demonstracje.
+      </p>
+      <div class="hero-actions">
+        <a
+          href="#"
+          class="hologram-btn btn-primary"
+          data-mode="avatar"
+          data-i18n="home_btn_avatars"
+          >Awatary AI</a
+        >
+        <a
+          href="#"
+          class="hologram-btn btn-secondary"
+          data-mode="hologram"
+          data-i18n="home_btn_holograms"
+          >Hologramy</a
+        >
+      </div>
+    </div>
 
-    <div class="hologram-wrapper">
+    <div class="hologram-wrapper theme-avatar">
       <div id="hologram-container">
-        <div class="hologram-hud">
-          <h3>STATUS:</h3>
-          <p id="status-text">Inicjalizacja...</p>
-        </div>
-
         <div id="laser-line" class="laser-line"></div>
+
+        <canvas
+          id="hologram-3d-canvas"
+          style="
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+          "
+        ></canvas>
 
         <img
           id="avatar-static-img"
-          src="assets/animation-photo.png"
+          src="assets/avatars/magda-photo.png"
           class="avatar-element avatar-static active scanning"
-          alt="Tworzenie awatara"
+          alt="Inicjalizacja"
         />
 
         <video
@@ -41,6 +76,17 @@
         </video>
 
         <video
+          id="avatar-idle-video-b"
+          class="avatar-element avatar-video"
+          muted
+          playsinline
+          controlsList="nodownload nofullscreen noremoteplayback"
+          disablePictureInPicture
+        >
+          <source id="idle-source-b" type="video/webm" />
+        </video>
+
+        <video
           id="avatar-question-video"
           class="avatar-element avatar-video"
           muted
@@ -51,28 +97,39 @@
           <source id="question-source" type="video/mp4" />
         </video>
 
-        <div id="questionTrigger" class="avatar-question-trigger">
-          <div class="avatar-question-bubble">
-            Czy mogę otrzymać umowę elektronicznie?
-          </div>
-          <button
-            id="questionArrowBtn"
-            class="question-arrow-btn"
-            aria-label="Zadaj pytanie: Czy mogę otrzymać umowę elektronicznie?"
-          ></button>
-        </div>
-
         <button
           id="refreshBtn"
           class="refresh-btn"
+          data-i18n-title="tooltip_refresh_anim"
+          data-i18n-aria-label="tooltip_refresh_anim"
+          title="Odtwórz animację od nowa"
           aria-label="Odtwórz animację od nowa"
         ></button>
 
         <button
           id="muteToggle"
           class="mute-toggle-btn"
+          data-i18n-title="tooltip_sound_on"
+          data-i18n-aria-label="tooltip_sound_on"
+          title="Włącz dźwięk"
           aria-label="Włącz dźwięk"
         ></button>
+      </div>
+
+      <div class="hologram-sidebar">
+        <div class="hologram-sidebar-hud-group">
+          <div class="hologram-hud">
+            <h3>STATUS:</h3>
+            <p id="status-text">Inicjalizacja...</p>
+          </div>
+        </div>
+
+        <div class="hologram-questions-group is-locked">
+          <p class="questions-label" id="questions-label">
+            Przykładowe pytania:
+          </p>
+          <div class="questions-selector" id="questions-selector"></div>
+        </div>
       </div>
     </div>
   </div>

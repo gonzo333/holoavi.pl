@@ -1,27 +1,33 @@
 <section class="section">
   <div class="container">
-    <h1 class="badge">> Formularz kontaktowy</h1>
-
-    <p style="margin-bottom: 20px">
-      Napisz do nas! Postaramy się odpowiedzieć najszybciej jak to tylko
-      możliwe!
-    </p>
+    <div class="page-header">
+      <span class="badge" data-i18n="contact_badge">> KONTAKT</span>
+      <h1 data-i18n="contact_title">Napisz do nas</h1>
+      <p class="lead" data-i18n="contact_lead">
+        Postaramy się odpowiedzieć najszybciej jak to tylko możliwe.
+      </p>
+    </div>
 
     <div class="form-wrapper">
       <form id="contactForm" class="card" novalidate>
         <div class="form-group">
-          <label for="imie">Jak masz na imie?</label>
+          <label for="imie" data-i18n="contact_lbl_name"
+            >Jak masz na imie?</label
+          >
           <input
             type="text"
             id="imie"
             name="imie"
             title="Twoje imie np. Agnieszka"
+            data-i18n-title="contact_title_name"
+            data-i18n-placeholder="contact_ph_name"
+            placeholder="np. Agnieszka"
             required
           />
         </div>
 
         <div class="form-group">
-          <label for="email"
+          <label for="email" data-i18n="contact_lbl_email"
             >Adres skrzynki pocztowej do kontaktu z Tobą?</label
           >
           <input
@@ -29,12 +35,15 @@
             id="email"
             name="email"
             title="Email kontaktowy np. jankowalski@gmail.com"
+            data-i18n-title="contact_title_email"
+            data-i18n-placeholder="contact_ph_email"
+            placeholder="np. jankowalski@gmail.com"
             required
           />
         </div>
 
         <div class="form-group">
-          <label for="nrtel"
+          <label for="nrtel" data-i18n="contact_lbl_phone"
             >Opcjonalnie: Pod jakim numerem możemy się do Ciebie
             dodzwonić?</label
           >
@@ -43,24 +52,62 @@
             id="nrtel"
             name="nrtel"
             title="Numer telefonu musi składać się z dokładnie 9 cyfr."
+            data-i18n-title="contact_title_phone"
+            data-i18n-placeholder="contact_ph_phone"
+            placeholder="np. 123456789"
           />
         </div>
 
         <div class="form-group">
-          <label for="wiadomosc">W czym możemy Ci pomóc?</label>
+          <label for="wiadomosc" data-i18n="contact_lbl_msg"
+            >W czym możemy Ci pomóc?</label
+          >
           <textarea
             id="wiadomosc"
             name="wiadomosc"
             rows="5"
             title="Treść zapytania"
+            data-i18n-title="contact_title_msg"
+            data-i18n-placeholder="contact_ph_msg"
+            placeholder="Treść wiadomości..."
             required
           ></textarea>
         </div>
 
-        <button type="submit" id="submitBtn" class="hologram-btn btn-tertiary">
+        <button
+          type="submit"
+          id="submitBtn"
+          class="hologram-btn btn-tertiary"
+          data-i18n="contact_btn_send"
+          data-i18n-title="contact_btn_send"
+          data-i18n-aria-label="contact_btn_send"
+        >
           Wyślij wiadomość
         </button>
       </form>
+
+      <div class="card contact-info-card">
+        <h3 data-i18n="contact_other_title">Inne sposoby kontaktu</h3>
+        <p>
+          <span data-i18n="contact_other_desc"
+            >Możesz też przesłać do nas korespondencję mailowo na adres</span
+          >
+          <a href="mailto:kontakt@holoavi.pl">kontakt@holoavi.pl</a>.
+        </p>
+
+        <div class="social-links">
+          <a
+            href="https://www.facebook.com/profile.php?id=61591270506999"
+            class="social-link"
+            target="_blank"
+            rel="noopener"
+            aria-label="Napisz do nas na Facebooku"
+          >
+            <img src="assets/facebook-icon.svg" alt="" width="22" height="22" />
+            <span data-i18n="contact_fb_btn">Napisz do nas na Facebooku</span>
+          </a>
+        </div>
+      </div>
     </div>
   </div>
 </section>
